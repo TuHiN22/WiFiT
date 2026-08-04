@@ -387,23 +387,31 @@ def get_root_access():
     
     print("\033[1;33m[*] Root access required. Attempting to elevate...\033[0m")
     
-    # Build the command string for tsu/su
+    # Build the command
     script_path = os.path.abspath(__file__)
-    args = ' '.join(sys.argv[1:]) if len(sys.argv) > 1 else ''
-    full_cmd = f'python3 {script_path} {args}'.strip()
+    cmd_args = sys.argv[1:] if len(sys.argv) > 1 else []
     
-    # Try different methods to get root
-    methods = [
-        ['tsu', '-c', full_cmd],
-        ['su', '-c', full_cmd],
-        ['sudo', 'python3', script_path] + sys.argv[1:],
-    ]
+    # Try tsu first (Termux preferred method)
+    try:
+        import subprocess
+        # Use tsu without -c, just pass python3 and script directly
+        tsu_cmd = ['tsu'] + ['python3', script_path] + cmd_args
+        os.execvp('tsu', tsu_cmd)
+    except (FileNotFoundError, PermissionError, Exception):
+        pass
     
-    for method in methods:
-        try:
-            os.execvp(method[0], method)
-        except (FileNotFoundError, PermissionError):
-            continue
+    # Try su as fallback
+    try:
+        cmd_str = f"python3 {script_path} {' '.join(cmd_args)}".strip()
+        os.execvp('su', ['su', '-c', cmd_str])
+    except (FileNotFoundError, PermissionError, Exception):
+        pass
+    
+    # Try sudo as last resort
+    try:
+        os.execvp('sudo', ['sudo', 'python3', script_path] + cmd_args)
+    except (FileNotFoundError, PermissionError, Exception):
+        pass
     
     print("\033[1;31m[-] Failed to get root access\033[0m")
     print("\033[1;33m[!] Please run: tsu\033[0m")
