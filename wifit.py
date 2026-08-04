@@ -549,8 +549,7 @@ class Companion:
             elif 'DH peer Public Key' in line and 'hexdump' in line:
                 self.pixie_creds.pke = get_hex(line)
                 if pixiemode:
-                    print('[P] PKE: {}
-'.format(self.pixie_creds.pke))
+                    print('[P] PKE: {}'.format(self.pixie_creds.pke))
             elif 'AuthKey' in line and 'hexdump' in line:
                 self.pixie_creds.authkey = get_hex(line)
                 if pixiemode:
