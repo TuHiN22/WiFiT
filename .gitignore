@@ -1,0 +1,62 @@
+# WiFiT .gitignore
+
+# Documentation files (internal use only)
+FIXES_APPLIED.md
+CHECKLIST_VERIFICATION.md
+VERIFIED_FEATURES.txt
+QUICK_REFERENCE.md
+QUICKSTART.md
+PROJECT_SUMMARY.md
+COMPLETION_SUMMARY.md
+COMMIT_SUMMARY.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# WiFiT specific
+reports/
+.WiFiT/
+*.session
+*.pcap
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

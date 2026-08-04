@@ -4,15 +4,18 @@
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                    🛡️  WiFiT v1.0.0                         ║
-║              Professional WPS Testing Toolkit                ║
+║                    🛡️  WiFiT v2.0.0                         ║
+║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
 [![Python Version](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux-lightgrey.svg)](https://github.com/TuHiN22/WiFiT)
+[![Platform](https://img.shields.io/badge/platform-Rooted%20Android%20%2B%20Termux-brightgreen.svg)](https://github.com/TuHiN22/WiFiT)
+[![Root Required](https://img.shields.io/badge/root-required-red.svg)](https://magisk.me/)
+
+**🔥 Designed exclusively for Rooted Android Devices with Termux**
 
 **A powerful hybrid WiFi penetration testing tool combining advanced WPS attack methods**
 
@@ -24,7 +27,14 @@
 
 ## 🎯 About
 
-WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit that combines the best features from multiple WiFi security testing tools. It features an intuitive menu-driven interface with multiple attack modes and automated network discovery.
+WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit **specifically designed for Rooted Android devices running Termux**. It combines the best features from multiple WiFi security testing tools with an intuitive menu-driven interface, multiple attack modes, and automated network discovery.
+
+### 📱 Platform Requirements
+
+**Designed For:**
+- ✅ Rooted Android Devices (Magisk / KernelSU)
+- ✅ Termux Terminal Emulator
+- ✅ Android 7.0+ recommended
 
 ### 🌟 Key Highlights
 
@@ -32,8 +42,10 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
 - **⚡ Pixie Dust Attack** - Fast WPS PIN recovery using known vulnerabilities
 - **💪 Brute Force Mode** - Systematic PIN testing with smart algorithms
 - **🤖 Smart Attack** - AI-enhanced PIN prediction and recovery
-- **📊 Comprehensive Logging** - All results saved with timestamps
-- **🎨 Beautiful UI** - Color-coded interface with progress indicators
+- **� Root Fix Tool** - Built-in superuser access repair utility
+- **�📊 Beautiful Results** - Styled output boxes with color-coded information
+- **📋 Comprehensive Logging** - All results saved with timestamps
+- **🎨 Modern UI** - Color-coded Termux-optimized interface
 
 ---
 
@@ -62,13 +74,22 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
    - Automatic fallback on failure
    - Optimized attack sequence
 
+5. **Root Fix Tool** 🆕
+   - Automatically diagnose root issues
+   - Remove conflicting packages
+   - Install required root tools
+   - Scan for su binaries (Magisk/KernelSU)
+   - Test root access
+
 ### Additional Features
 
 - **Network Scanner** - Displays WPS-enabled networks with signal strength
 - **Password Manager** - View all cracked credentials
+- **Beautiful Result Display** - Styled boxes with color-coded output
 - **Multiple Export Formats** - TXT and CSV output
 - **Session Management** - Resume interrupted attacks
 - **MAC Address Support** - Vendor-specific algorithms for major brands
+- **No sudo Required** - Automatic root elevation in Termux
 
 ---
 
@@ -76,20 +97,32 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
 
 ### System Requirements
 
-- **OS**: Linux (Kali, Ubuntu, Debian) or Android (Termux)
+- **Device**: Rooted Android device
+- **Root Method**: Magisk or KernelSU
+- **Termux**: Latest version from F-Droid
 - **Python**: 3.6 or higher
 - **Root Access**: Required for WiFi operations
 
+### Root Setup
+
+1. **Install Root Manager**
+   - [Magisk](https://github.com/topjohnwu/Magisk) (Recommended)
+   - [KernelSU](https://kernelsu.org/) (Alternative)
+
+2. **Grant Termux Root Permission**
+   - Open Magisk/KernelSU app
+   - Find Termux in app list
+   - Grant superuser permission
+
 ### Dependencies
 
+**Termux Packages:**
 - `python3` - Python interpreter
-- `wpa_supplicant` - WPS protocol handler
-- `pixiewps` - Pixie Dust attack tool
-- `iw` or `iwlist` - Wireless scanning
+- `tsu` - Termux superuser utility
+- `root-repo` - Root-related packages
 - `wireless-tools` - WiFi utilities
 
-### Python Packages (Optional)
-
+**Python Packages (Optional):**
 - `pyfiglet` - ASCII art banners
 - `psutil` - System information
 
@@ -97,52 +130,50 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
 
 ## 🚀 Installation
 
-### Quick Install (Recommended)
+### Quick Install (One Command) ⚡
 
 ```bash
-# Clone the repository
+curl -sL https://raw.githubusercontent.com/TuHiN22/WiFiT/master/install.sh | bash
+```
+
+### Termux Installation (Step by Step)
+
+```bash
+# 1. Install Termux from F-Droid (NOT Play Store!)
+# Download: https://f-droid.org/packages/com.termux/
+
+# 2. Update Termux packages
+pkg update && pkg upgrade -y
+
+# 3. Clone WiFiT repository
+pkg install git -y
 git clone https://github.com/TuHiN22/WiFiT.git
 cd WiFiT
 
-# Make installer executable
-chmod +x install.sh
+# 4. Run installer
+bash install.sh
 
-# Run installer as root
-sudo ./install.sh
+# 5. Grant root permission when prompted
+# First time: run 'tsu' and grant superuser access
+
+# 6. Start WiFiT
+wifit
 ```
 
-### Manual Installation
+### First Time Setup
 
 ```bash
-# Install dependencies (Debian/Ubuntu)
-sudo apt-get update
-sudo apt-get install -y python3 wpasupplicant pixiewps iw wireless-tools
+# After installation, grant Termux root access:
 
-# Install Python packages
-pip3 install pyfiglet psutil
+# 1. Run tsu for the first time
+tsu
 
-# Make script executable
-chmod +x wifit.py
+# 2. Grant permission in Magisk/KernelSU popup
+# (Check "Remember choice" for convenience)
 
-# Create symbolic link
-sudo ln -s $(pwd)/wifit.py /usr/local/bin/wifit
-```
-
-### Termux Installation (Android)
-
-```bash
-# Install Termux from F-Droid (not Play Store)
-# Open Termux and run:
-
-pkg update && pkg upgrade
-pkg install python git root-repo
-pkg install tsu
-
-# Clone and install
-git clone https://github.com/TuHiN22/WiFiT.git
-cd WiFiT
-chmod +x install.sh
-sudo ./install.sh
+# 3. Exit and run WiFiT
+exit
+wifit
 ```
 
 ---
@@ -152,8 +183,8 @@ sudo ./install.sh
 ### Basic Usage
 
 ```bash
-# Start WiFiT (must run as root)
-sudo wifit
+# Simply run (no sudo needed!)
+wifit
 ```
 
 ### Menu Options
@@ -167,32 +198,73 @@ sudo wifit
 ║  [3] 💪 Brute Force Attack - Systematic PIN Testing         ║
 ║  [4] 🤖 Smart PIN Attack - AI-Enhanced Recovery             ║
 ║  [5] 📋 View Saved Passwords                                ║
-║  [6] 🚪 Exit                                                ║
+║  [6] 🔧 Fix Root Issues - Repair Superuser Access           ║
+║  [7] 🚪 Exit                                                ║
 ╚══════════════════════════════════════════════════════════════╝
+```
+
+### Result Display
+
+When an attack is successful, you'll see a beautiful result box:
+
+```
+┌─[ WiFiT ]───[ CRACKED ]──────────────────────────────────┐
+│                                                            │
+│ PIN  : 12345678                                           │
+│ PSK  : MyHomePa$$word!                                    │
+│ SSID : TP-Link_HOME                                       │
+│                                                            │
+└─[ Stay With TuHiN ]──────────────────────────────────────┘
+
+[+] Saved → reports/WiFiT_saved_data.txt
+
+[i] Credentials saved to reports/WiFiT_Results.txt, reports/stored.csv
 ```
 
 ### Step-by-Step Guide
 
-1. **Select Attack Mode**
+1. **Launch WiFiT**
+   ```bash
+   wifit
+   ```
+
+2. **Select Attack Mode**
    - Choose option 1-4 based on your needs
    - Option 1 (Auto Attack) is recommended for beginners
 
-2. **Scan Networks**
+3. **Scan Networks**
    - WiFiT will scan for WPS-enabled networks
    - Networks are sorted by signal strength
+   - If no networks found, press Enter to retry or 'q' to quit
 
-3. **Select Target**
+4. **Select Target**
    - Enter the number of target network
-   - Press 'r' to rescan
-   - Press 'q' to go back
+   - Press 'r' to rescan (refreshes the network list)
+   - Press 'q' to go back to main menu
 
-4. **Wait for Results**
+5. **Wait for Results**
    - Attack progress is displayed in real-time
-   - Successful cracks are automatically saved
+   - Successful cracks are automatically saved with styled output
 
-5. **View Results**
+6. **View Results**
    - Select option 5 to view all saved passwords
    - Results are saved in `reports/` directory
+
+### Option 6: Fix Root Issues 🔧
+
+If you're experiencing root access problems:
+
+```bash
+wifit  # Launch WiFiT
+# Select option 6
+
+# The tool will automatically:
+# ✓ Diagnose root issues
+# ✓ Remove conflicting packages
+# ✓ Install required root tools
+# ✓ Scan for su binaries
+# ✓ Test root access
+```
 
 ---
 
@@ -203,7 +275,8 @@ sudo wifit
 ```
 WiFiT/
 ├── reports/
-│   ├── WiFiT_Results.txt      # Human-readable format
+│   ├── WiFiT_Results.txt      # Human-readable format with styled boxes
+│   ├── WiFiT_saved_data.txt   # Quick reference file
 │   └── stored.csv              # CSV format for import
 └── .WiFiT/
     ├── sessions/               # Attack sessions
@@ -213,14 +286,16 @@ WiFiT/
 ### Sample Output
 
 ```
-═══════════════════════════════════════
-WiFiT Attack Result - 05.08.2026 14:30
-═══════════════════════════════════════
-BSSID: AA:BB:CC:DD:EE:FF
-ESSID: TargetNetwork
-WPS PIN: 12345670
-WPA PSK: MySecurePassword123
-═══════════════════════════════════════
+┌─[ WiFiT ]───[ CRACKED ]──────────────────────────────────┐
+│                                                            │
+│ PIN  : 12345670                                           │
+│ PSK  : MySecurePassword123                                │
+│ SSID : TargetNetwork                                      │
+│                                                            │
+└─[ Stay With TuHiN ]──────────────────────────────────────┘
+
+[+] Saved → reports/WiFiT_saved_data.txt
+[i] Credentials saved to reports/WiFiT_Results.txt, reports/stored.csv
 ```
 
 ---
@@ -229,30 +304,66 @@ WPA PSK: MySecurePassword123
 
 ### Common Issues
 
-**1. "No WPS networks found"**
-- Ensure your WiFi adapter supports monitor mode
-- Check if networks actually have WPS enabled
-- Try moving closer to access points
-
-**2. "wpa_supplicant error"**
+**1. "No superuser binary detected"**
 ```bash
-# Kill existing wpa_supplicant processes
-sudo killall wpa_supplicant
-# Try again
+# Solution: Use Option 6 (Fix Root Issues)
+wifit
+# Select option 6 from menu
+
+# Or manually:
+pkg install root-repo tsu -y
+tsu  # Grant permission
 ```
 
-**3. "Permission denied"**
+**2. "No WPS networks found"**
 ```bash
-# Ensure you're running as root
-sudo wifit
+# WiFiT now provides retry option:
+# - Press Enter to scan again
+# - Press 'q' to return to menu
+
+# Manual troubleshooting:
+# - Ensure WiFi is enabled on your device
+# - Move closer to access points
+# - Check if networks actually have WPS enabled
+# - Try different locations
 ```
 
-**4. "Interface not found"**
+**3. "Root access not working"**
+```bash
+# Check if Magisk/KernelSU is installed
+# Open Magisk app → Check Termux permissions
+
+# Test root manually:
+tsu
+id  # Should show uid=0(root)
+```
+
+**4. "Permission denied"**
+```bash
+# Make sure you granted Termux root access
+# In Magisk/KernelSU:
+# - Find Termux
+# - Grant superuser permission
+# - Check "Remember choice"
+```
+
+**5. "Interface not found"**
 ```bash
 # Check available interfaces
-iwconfig
-# or
 ip link show
+
+# WiFi interface is usually wlan0
+```
+
+**6. "Command not found: wifit"**
+```bash
+# Restart Termux
+exit  # Close Termux
+# Open Termux again
+
+# Or reinstall
+cd WiFiT
+bash install.sh
 ```
 
 ### Get Help

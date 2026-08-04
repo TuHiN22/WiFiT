@@ -3,8 +3,9 @@
 """
 WiFiT - Professional WPS Penetration Testing Tool
 Author: TuHiN
-Version: 1.0.0
+Version: 2.0.0
 
+Designed for Rooted Android Devices with Termux
 A hybrid WiFi hacking tool combining the best features from multiple sources.
 For educational and authorized testing purposes only.
 """
@@ -26,7 +27,6 @@ import csv
 from pathlib import Path
 from typing import Dict
 import random
-import json
 import threading
 import queue
 import hashlib
@@ -373,16 +373,64 @@ class BruteforceStatus:
         self.__init__()
 
 
+def check_root():
+    """Check if script has root access"""
+    if os.getuid() == 0:
+        return True
+    return False
+
+
+def get_root_access():
+    """Automatically elevate to root in Termux"""
+    if check_root():
+        return True
+    
+    print("\033[1;33m[*] Root access required. Attempting to elevate...\033[0m")
+    
+    # Try different methods to get root
+    methods = [
+        ['tsu', '-c', 'python3', os.path.abspath(__file__)] + sys.argv[1:],
+        ['su', '-c', 'python3 ' + os.path.abspath(__file__) + ' ' + ' '.join(sys.argv[1:])],
+        ['sudo', 'python3', os.path.abspath(__file__)] + sys.argv[1:],
+    ]
+    
+    for method in methods:
+        try:
+            os.execvp(method[0], method)
+        except (FileNotFoundError, PermissionError):
+            continue
+    
+    print("\033[1;31m[-] Failed to get root access\033[0m")
+    print("\033[1;33m[!] Please run: tsu\033[0m")
+    print("\033[1;33m[!] Then try again, or use Option 6 to fix root issues\033[0m")
+    return False
+
+
+def display_cracked_result(pin, psk, ssid):
+    """Display result in beautiful box format"""
+    box_width = 64
+    print("\n")
+    print("\033[1;36m┌─[ WiFiT ]───[ CRACKED ]" + "─" * (box_width - 25) + "┐\033[0m")
+    print("\033[1;36m│\033[0m" + " " * (box_width - 2) + "\033[1;36m│\033[0m")
+    print(f"\033[1;36m│\033[0m \033[1;32mPIN\033[0m  : \033[1;37m{pin:<{box_width - 10}}\033[0m\033[1;36m│\033[0m")
+    print(f"\033[1;36m│\033[0m \033[1;33mPSK\033[0m  : \033[1;33m{psk:<{box_width - 10}}\033[0m\033[1;36m│\033[0m")
+    print(f"\033[1;36m│\033[0m \033[1;37mSSID\033[0m : \033[1;37m{ssid:<{box_width - 10}}\033[0m\033[1;36m│\033[0m")
+    print("\033[1;36m│\033[0m" + " " * (box_width - 2) + "\033[1;36m│\033[0m")
+    print("\033[1;36m└─[ Stay With TuHiN ]" + "─" * (box_width - 21) + "┘\033[0m")
+    print()
+
+
 def show_wifit_banner():
     """Display WiFiT branded banner"""
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     banner = f"""
 \033[1;36m╔══════════════════════════════════════════════════════════════╗
-║                    🛡️  WiFiT v1.0.0                         ║
-║              Professional WPS Testing Toolkit                ║
+║                    🛡️  WiFiT v2.0.0                         ║
+║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Time: {current_time}                      ║
+║  Platform: Rooted Android + Termux                          ║
 ║  GitHub: https://github.com/TuHiN22/WiFiT                   ║
 ╚══════════════════════════════════════════════════════════════╝\033[0m
     """
@@ -400,7 +448,8 @@ def show_main_menu():
 ║  [3] 💪 Brute Force Attack - Systematic PIN Testing         ║
 ║  [4] 🤖 Smart PIN Attack - AI-Enhanced Recovery             ║
 ║  [5] 📋 View Saved Passwords                                ║
-║  [6] 🚪 Exit                                                ║
+║  [6] 🔧 Fix Root Issues - Repair Superuser Access           ║
+║  [7] 🚪 Exit                                                ║
 ╚══════════════════════════════════════════════════════════════╝\033[0m
     """
     print(menu)
@@ -645,11 +694,16 @@ class Companion:
         self.__wps_connection(bssid, pin, pixiemode)
 
         if self.connection_status.status == 'GOT_PSK':
-            print(f"\n\033[1;32m[+] SUCCESS!\033[0m")
-            print(f"[+] WPS PIN: '{pin}'")
-            print(f"[+] WPA PSK: '{self.connection_status.wpa_psk}'")
-            print(f"[+] AP SSID: '{self.connection_status.essid}'")
+            # Display beautiful result box
+            display_cracked_result(pin, self.connection_status.wpa_psk, self.connection_status.essid)
+            
+            # Save results
             self.__saveResult(bssid, self.connection_status.essid, pin, self.connection_status.wpa_psk)
+            
+            # Show save confirmation
+            print(f"\033[1;33m[+] Saved → reports/WiFiT_saved_data.txt\033[0m")
+            print(f"\033[1;37m[i] Credentials saved to reports/WiFiT_Results.txt, reports/stored.csv\033[0m\n")
+            
             return True
         elif pixiemode:
             if self.pixie_creds.got_all():
@@ -813,35 +867,150 @@ class MenuHandler:
         except:
             return "wlan0"
     
+    def fix_root_issues(self):
+        """Fix root access issues - Option 6"""
+        print("\n\033[1;36m╔══════════════════════════════════════════════════════════════╗")
+        print("║                   🔧 ROOT ISSUE FIXER                       ║")
+        print("╚══════════════════════════════════════════════════════════════╝\033[0m\n")
+        
+        print("\033[1;33m[*] Starting root issue diagnosis and repair...\033[0m\n")
+        
+        issues_fixed = 0
+        
+        # Step 1: Check current root status
+        print("\033[1;36m[1/5]\033[0m Checking current root status...")
+        if check_root():
+            print("      \033[1;32m✓ Already running as root\033[0m")
+        else:
+            print("      \033[1;31m✗ Not running as root\033[0m")
+        
+        # Step 2: Remove conflicting tsu packages
+        print("\n\033[1;36m[2/5]\033[0m Removing conflicting tsu packages...")
+        try:
+            result = subprocess.run("pkg uninstall tsu -y", shell=True, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                print("      \033[1;32m✓ Removed old tsu package\033[0m")
+                issues_fixed += 1
+            else:
+                print("      \033[1;33m! No conflicting tsu found\033[0m")
+        except Exception as e:
+            print(f"      \033[1;33m! Could not remove tsu: {e}\033[0m")
+        
+        # Step 3: Install/reinstall required packages
+        print("\n\033[1;36m[3/5]\033[0m Installing required root packages...")
+        packages = ['tsu', 'root-repo']
+        for pkg in packages:
+            try:
+                print(f"      Installing {pkg}...")
+                result = subprocess.run(f"pkg install {pkg} -y", shell=True, capture_output=True, text=True, timeout=60)
+                if result.returncode == 0:
+                    print(f"      \033[1;32m✓ Installed {pkg}\033[0m")
+                    issues_fixed += 1
+                else:
+                    print(f"      \033[1;33m! {pkg} already installed or unavailable\033[0m")
+            except Exception as e:
+                print(f"      \033[1;31m✗ Failed to install {pkg}: {e}\033[0m")
+        
+        # Step 4: Scan for su binary
+        print("\n\033[1;36m[4/5]\033[0m Scanning for superuser binary...")
+        su_paths = [
+            '/system/bin/su',
+            '/system/xbin/su',
+            '/su/bin/su',
+            '/sbin/su',
+            '/data/local/xbin/su',
+            '/data/local/bin/su',
+            '/system/sd/xbin/su',
+            '/system/bin/failsafe/su',
+            '/data/adb/magisk/busybox',
+            '/data/adb/ksu/bin/su',
+            '/data/adb/ap/bin/su',
+        ]
+        
+        found_su = []
+        for path in su_paths:
+            if os.path.exists(path):
+                found_su.append(path)
+                print(f"      \033[1;32m✓ Found: {path}\033[0m")
+        
+        if found_su:
+            print(f"\n      \033[1;32m✓ Found {len(found_su)} superuser binaries\033[0m")
+            issues_fixed += 1
+        else:
+            print("      \033[1;31m✗ No superuser binary found!\033[0m")
+            print("      \033[1;33m! Please install Magisk or KernelSU\033[0m")
+        
+        # Step 5: Test root access
+        print("\n\033[1;36m[5/5]\033[0m Testing root access...")
+        test_commands = ['tsu -c "id"', 'su -c "id"']
+        root_works = False
+        
+        for cmd in test_commands:
+            try:
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                if 'uid=0' in result.stdout:
+                    print(f"      \033[1;32m✓ Root access works with: {cmd.split()[0]}\033[0m")
+                    root_works = True
+                    issues_fixed += 1
+                    break
+            except:
+                continue
+        
+        if not root_works:
+            print("      \033[1;31m✗ Root access test failed\033[0m")
+        
+        # Summary
+        print("\n" + "─" * 64)
+        print("\n\033[1;36m📊 REPAIR SUMMARY\033[0m")
+        print(f"   Issues Fixed: \033[1;32m{issues_fixed}/5\033[0m")
+        
+        if root_works:
+            print("\n\033[1;32m✓ Root access is working!\033[0m")
+            print("\033[1;33m[*] Restart WiFiT to use root features\033[0m")
+        else:
+            print("\n\033[1;31m✗ Root access still not working\033[0m")
+            print("\n\033[1;33mTroubleshooting steps:\033[0m")
+            print("  1. Install Magisk: https://github.com/topjohnwu/Magisk")
+            print("  2. Or install KernelSU: https://kernelsu.org")
+            print("  3. Grant Termux root permission in Magisk/KernelSU")
+            print("  4. Run: tsu")
+            print("  5. Then run: wifit")
+        
+        input("\n\033[1;36mPress Enter to continue...\033[0m")
+    
     def show_wifi_networks(self, attack_mode="pixie"):
         """Show networks and attack selected one"""
-        scanner = WiFiScanner(self.interface)
-        networks = scanner.iw_scanner()
-        
-        if not networks:
-            print('[-] No WPS networks found')
-            input('\nPress Enter to continue...')
-            return
-        
         while True:
-            try:
-                choice = input("\n\033[1;36m[?] Select network number (or 'r' to rescan, 'q' to quit): \033[0m").strip()
-                if choice.lower() == 'q':
+            scanner = WiFiScanner(self.interface)
+            networks = scanner.iw_scanner()
+            
+            if not networks:
+                print('[-] No WPS networks found')
+                retry = input('\n\033[1;33m[?] Press Enter to retry or "q" to quit: \033[0m').strip().lower()
+                if retry == 'q':
                     return
-                if choice.lower() == 'r':
-                    return self.show_wifi_networks(attack_mode)
-                
-                network_num = int(choice)
-                if network_num in networks:
-                    selected = networks[network_num]
-                    self._attack_network(selected, attack_mode)
+                continue
+            
+            while True:
+                try:
+                    choice = input("\n\033[1;36m[?] Select network number (or 'r' to rescan, 'q' to quit): \033[0m").strip()
+                    if choice.lower() == 'q':
+                        return
+                    if choice.lower() == 'r':
+                        break  # Break inner loop to rescan
+                    
+                    network_num = int(choice)
+                    if network_num in networks:
+                        selected = networks[network_num]
+                        self._attack_network(selected, attack_mode)
+                        return
+                    else:
+                        print('[-] Invalid selection. Please try again.')
+                except ValueError:
+                    print('[-] Please enter a valid number, "r" to rescan, or "q" to quit')
+                except KeyboardInterrupt:
+                    print("\n[!] Operation cancelled")
                     return
-                else:
-                    print('[-] Invalid selection')
-            except ValueError:
-                print('[-] Please enter a valid number')
-            except KeyboardInterrupt:
-                return
     
     def _attack_network(self, network, attack_mode):
         """Attack selected network"""
@@ -893,7 +1062,9 @@ class MenuHandler:
         
         if not networks:
             print('[-] No WPS networks found')
-            input('\nPress Enter to continue...')
+            retry = input('\n\033[1;33m[?] Press Enter to retry or "q" to quit: \033[0m').strip().lower()
+            if retry != 'q':
+                return self.auto_attack_all()
             return
         
         total = len(networks)
@@ -1000,7 +1171,7 @@ class MenuHandler:
             show_main_menu()
             
             try:
-                choice = input("\n\033[1;36m[?] Select option (1-6): \033[0m").strip()
+                choice = input("\n\033[1;36m[?] Select option (1-7): \033[0m").strip()
                 
                 if choice == "1":
                     self.auto_attack_all()
@@ -1013,6 +1184,8 @@ class MenuHandler:
                 elif choice == "5":
                     self.view_saved_passwords()
                 elif choice == "6":
+                    self.fix_root_issues()
+                elif choice == "7":
                     print("\n\033[1;32m[*] Thank you for using WiFiT!\033[0m")
                     print("[*] Author: TuHiN")
                     print("[*] GitHub: https://github.com/TuHiN22/WiFiT")
@@ -1034,9 +1207,12 @@ def main():
         print("[-] This program requires Python 3.6 or higher")
         sys.exit(1)
     
-    if os.getuid() != 0:
-        print("[-] This program must be run as root")
-        sys.exit(1)
+    # Check and get root access automatically
+    if not check_root():
+        if not get_root_access():
+            print("\n\033[1;33m[!] WiFiT requires root access to function properly\033[0m")
+            print("\033[1;33m[!] Please grant root permission or use Option 6 to fix issues\033[0m")
+            # Allow to continue to menu for Option 6
     
     # Run menu system
     menu = MenuHandler()
