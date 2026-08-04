@@ -103,36 +103,31 @@ install_wifit() {
     
     # Copy main script
     echo -e "${BLUE}[*] Copying WiFiT script...${NC}"
-    cp "$SCRIPT_DIR/wifit.py" "$INSTALL_DIR/wifit"
-    chmod +x "$INSTALL_DIR/wifit"
     
-    # Create wrapper script for auto root elevation
+    # First, copy the actual Python script
+    cp "$SCRIPT_DIR/wifit.py" "$INSTALL_DIR/wifit.py"
+    chmod +x "$INSTALL_DIR/wifit.py"
+    
+    # Then create wrapper script
     cat > "$INSTALL_DIR/wifit" << 'EOF'
 #!/bin/bash
 # WiFiT Wrapper Script - Auto elevates to root
 
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-WIFIT_SCRIPT="$SCRIPT_DIR/wifit.py"
-
-# Check if wifit.py exists, if not use the one from installation
-if [ ! -f "$WIFIT_SCRIPT" ]; then
-    if [ -f "$PREFIX/bin/wifit.py" ]; then
-        WIFIT_SCRIPT="$PREFIX/bin/wifit.py"
-    elif [ -f "/usr/local/bin/wifit.py" ]; then
-        WIFIT_SCRIPT="/usr/local/bin/wifit.py"
-    else
-        echo "[-] WiFiT script not found!"
-        exit 1
-    fi
+# Check for wifit.py in installation directory
+if [ -f "$PREFIX/bin/wifit.py" ]; then
+    WIFIT_SCRIPT="$PREFIX/bin/wifit.py"
+elif [ -f "/usr/local/bin/wifit.py" ]; then
+    WIFIT_SCRIPT="/usr/local/bin/wifit.py"
+else
+    echo "[-] WiFiT script not found!"
+    exit 1
 fi
 
 # Run with python3
 python3 "$WIFIT_SCRIPT" "$@"
 EOF
     
-    # Also copy the actual Python script
-    cp "$SCRIPT_DIR/wifit.py" "$INSTALL_DIR/wifit.py"
-    chmod +x "$INSTALL_DIR/wifit.py"
+    chmod +x "$INSTALL_DIR/wifit"
     
     # Create reports directory
     mkdir -p "$SCRIPT_DIR/reports"
