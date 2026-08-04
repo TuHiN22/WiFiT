@@ -69,8 +69,22 @@ install_dependencies_termux() {
 install_wifit() {
     echo -e "\n${YELLOW}[*] Installing WiFiT...${NC}"
     
-    # Get script directory
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    # Get script directory - handle both direct run and piped from curl
+    if [ -n "${BASH_SOURCE[0]}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+        SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    else
+        # If piped from curl, assume we're in the WiFiT directory
+        if [ -f "wifit.py" ]; then
+            SCRIPT_DIR="$(pwd)"
+        else
+            echo -e "${RED}[-] Error: wifit.py not found!${NC}"
+            echo -e "${YELLOW}[!] Please run this script from the WiFiT directory${NC}"
+            echo -e "${YELLOW}[!] Or clone first: git clone https://github.com/TuHiN22/WiFiT.git${NC}"
+            exit 1
+        fi
+    fi
+    
+    echo -e "${BLUE}[*] Source directory: $SCRIPT_DIR${NC}"
     
     # For Termux, install to $PREFIX/bin
     if [ -d "/data/data/com.termux" ]; then
@@ -80,6 +94,12 @@ install_wifit() {
     fi
     
     echo -e "${BLUE}[*] Installation directory: $INSTALL_DIR${NC}"
+    
+    # Verify source file exists
+    if [ ! -f "$SCRIPT_DIR/wifit.py" ]; then
+        echo -e "${RED}[-] Error: $SCRIPT_DIR/wifit.py not found!${NC}"
+        exit 1
+    fi
     
     # Copy main script
     echo -e "${BLUE}[*] Copying WiFiT script...${NC}"
@@ -126,7 +146,7 @@ check_installation() {
     
     if command -v wifit &> /dev/null; then
         echo -e "${GREEN}[+] WiFiT command is available${NC}"
-    else:
+    else
         echo -e "${YELLOW}[!] WiFiT command not found in PATH${NC}"
         echo -e "${YELLOW}[!] You may need to restart Termux${NC}"
     fi
@@ -178,6 +198,22 @@ main() {
     show_banner
     
     echo -e "${CYAN}[*] Starting WiFiT installation...${NC}\n"
+    
+    # Check if wifit.py exists in current directory
+    if [ ! -f "wifit.py" ]; then
+        echo -e "${YELLOW}[!] wifit.py not found in current directory${NC}"
+        echo -e "${YELLOW}[!] Cloning from GitHub...${NC}\n"
+        
+        if command -v git &> /dev/null; then
+            git clone https://github.com/TuHiN22/WiFiT.git
+            cd WiFiT || exit 1
+        else
+            echo -e "${RED}[-] Git not installed. Installing...${NC}"
+            pkg install git -y
+            git clone https://github.com/TuHiN22/WiFiT.git
+            cd WiFiT || exit 1
+        fi
+    fi
     
     check_termux
     echo ""
