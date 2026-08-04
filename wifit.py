@@ -392,12 +392,15 @@ def get_root_access():
     cmd_args = sys.argv[1:] if len(sys.argv) > 1 else []
     
     # Try tsu first (Termux preferred method)
+    # Use absolute path to python3
     try:
-        import subprocess
-        # Use tsu without -c, just pass python3 and script directly
-        tsu_cmd = ['tsu'] + ['python3', script_path] + cmd_args
-        os.execvp('tsu', tsu_cmd)
-    except (FileNotFoundError, PermissionError, Exception):
+        python_path = '/data/data/com.termux/files/usr/bin/python3'
+        if not os.path.exists(python_path):
+            python_path = 'python3'  # fallback
+        
+        tsu_cmd = ['tsu', python_path, script_path] + cmd_args
+        os.execv('/data/data/com.termux/files/usr/bin/tsu', tsu_cmd)
+    except (FileNotFoundError, PermissionError, Exception) as e:
         pass
     
     # Try su as fallback
@@ -416,6 +419,7 @@ def get_root_access():
     print("\033[1;31m[-] Failed to get root access\033[0m")
     print("\033[1;33m[!] Please run: tsu\033[0m")
     print("\033[1;33m[!] Then try again, or use Option 6 to fix root issues\033[0m")
+    return False
     return False
 
 
