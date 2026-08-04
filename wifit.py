@@ -387,11 +387,16 @@ def get_root_access():
     
     print("\033[1;33m[*] Root access required. Attempting to elevate...\033[0m")
     
+    # Build the command string for tsu/su
+    script_path = os.path.abspath(__file__)
+    args = ' '.join(sys.argv[1:]) if len(sys.argv) > 1 else ''
+    full_cmd = f'python3 {script_path} {args}'.strip()
+    
     # Try different methods to get root
     methods = [
-        ['tsu', '-c', 'python3', os.path.abspath(__file__)] + sys.argv[1:],
-        ['su', '-c', 'python3 ' + os.path.abspath(__file__) + ' ' + ' '.join(sys.argv[1:])],
-        ['sudo', 'python3', os.path.abspath(__file__)] + sys.argv[1:],
+        ['tsu', '-c', full_cmd],
+        ['su', '-c', full_cmd],
+        ['sudo', 'python3', script_path] + sys.argv[1:],
     ]
     
     for method in methods:

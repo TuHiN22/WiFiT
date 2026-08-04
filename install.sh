@@ -65,6 +65,41 @@ install_dependencies_termux() {
     echo -e "\n${GREEN}[+] Dependencies installed successfully!${NC}"
 }
 
+# Setup root access
+setup_root_access() {
+    echo -e "\n${YELLOW}[*] Setting up root access...${NC}\n"
+    
+    # Check if already root
+    if [ "$(id -u)" = "0" ]; then
+        echo -e "${GREEN}[+] Already running as root${NC}"
+        return 0
+    fi
+    
+    # Install tsu if not present
+    if ! command -v tsu &> /dev/null; then
+        echo -e "${BLUE}[*] Installing tsu for root access...${NC}"
+        pkg install tsu -y 2>/dev/null
+    fi
+    
+    # Test root access
+    echo -e "${BLUE}[*] Testing root access...${NC}"
+    
+    if tsu -c "id" 2>/dev/null | grep -q "uid=0"; then
+        echo -e "${GREEN}[+] Root access is working!${NC}"
+        return 0
+    else
+        echo -e "${YELLOW}[!] Root access not configured yet${NC}"
+        echo -e "${YELLOW}[!] You need to:${NC}"
+        echo -e "    1. Install Magisk or KernelSU"
+        echo -e "    2. Grant Termux root permission"
+        echo -e "    3. Run: ${CYAN}tsu${NC} (and grant permission)"
+        echo -e "    4. Then run: ${CYAN}wifit${NC}"
+        echo -e ""
+        echo -e "${BLUE}[i] WiFiT will auto-elevate to root when you run it${NC}"
+        return 1
+    fi
+}
+
 # Install WiFiT
 install_wifit() {
     echo -e "\n${YELLOW}[*] Installing WiFiT...${NC}"
@@ -214,6 +249,9 @@ main() {
     echo ""
     
     install_dependencies_termux
+    echo ""
+    
+    setup_root_access
     echo ""
     
     install_wifit
