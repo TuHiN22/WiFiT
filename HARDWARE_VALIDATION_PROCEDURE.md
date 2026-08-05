@@ -33,7 +33,8 @@
 ```bash
 # On Android/Termux
 pkg update && pkg upgrade -y
-pkg install python git root-repo tsu wireless-tools -y
+pkg install root-repo -y
+pkg install python git tsu iproute2 iw wpa-supplicant pixiewps -y
 
 # Clone the branch
 git clone -b agent/wifit-v3 https://github.com/TuHiN22/WiFiT.git

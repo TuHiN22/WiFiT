@@ -8,6 +8,7 @@ from wifit_core.platform import (
     parse_rfkill_list,
 )
 from wifit_core.runner import CommandResult
+from wifit_core.scanner import ScanError, WiFiScanner
 
 
 def result(argv, stdout="", stderr="", returncode=0):
@@ -49,6 +50,49 @@ phy#1
 \t\ttype managed
 """
 
+IW_SCAN_OUTPUT = """\
+BSS aa:bb:cc:dd:ee:ff(on wlan1)
+\tfreq: 2412
+\tsignal: -42.00 dBm
+\tSSID: Validation AP
+\tWPS:\t * Version: 1.0
+\t\t * AP setup locked: 0x00
+"""
+
+
+class LinkStateRunner(FakeRunner):
+    """Fake command boundary whose scan succeeds only while the link is up."""
+
+    def __init__(self, *, scan_succeeds=True):
+        super().__init__()
+        self.link_up = False
+        self.scan_succeeds = scan_succeeds
+
+    def run(self, argv, *, timeout=None, **kwargs):
+        key = tuple(argv)
+        self.calls.append((key, timeout))
+        if key == ("rfkill", "list"):
+            return result(key)
+        if key == ("iw", "dev"):
+            return result(
+                key,
+                "phy#1\n\tInterface wlan1\n\t\tifindex 7\n\t\ttype managed\n",
+            )
+        if key == ("ip", "-o", "link", "show", "dev", "wlan1"):
+            flags = "BROADCAST,UP" if self.link_up else "BROADCAST"
+            return result(key, f"7: wlan1: <{flags}> state DOWN\n")
+        if key == ("ip", "link", "set", "dev", "wlan1", "up"):
+            self.link_up = True
+            return result(key)
+        if key == ("ip", "link", "set", "dev", "wlan1", "down"):
+            self.link_up = False
+            return result(key)
+        if key == ("iw", "dev", "wlan1", "scan"):
+            if self.link_up and self.scan_succeeds:
+                return result(key, IW_SCAN_OUTPUT)
+            return result(key, stderr="command failed: Network is down (-100)", returncode=1)
+        return result(key)
+
 
 class PlatformParserTests(unittest.TestCase):
     def test_parse_iw_dev_keeps_interface_metadata(self):
@@ -87,6 +131,60 @@ class PlatformParserTests(unittest.TestCase):
 
 
 class PlatformManagerTests(unittest.TestCase):
+    def test_failed_scan_still_restores_a_previously_down_link(self):
+        runner = LinkStateRunner(scan_succeeds=False)
+        manager = PlatformManager(
+            "wlan1", runner=runner, is_android=False, poll_interval=0
+        )
+
+        try:
+            selected_interface = manager.prepare()
+            scanner = WiFiScanner(
+                selected_interface,
+                retries=0,
+                command_runner=runner,
+            )
+            with self.assertRaisesRegex(ScanError, "Network is down"):
+                scanner.scan()
+        finally:
+            restore_failures = manager.restore()
+
+        self.assertEqual(restore_failures, ())
+        self.assertFalse(runner.link_up)
+        commands = [call[0] for call in runner.calls]
+        self.assertEqual(
+            commands.count(("ip", "link", "set", "dev", "wlan1", "down")),
+            1,
+        )
+
+    def test_prepared_scan_brings_link_up_then_restores_down(self):
+        runner = LinkStateRunner()
+        manager = PlatformManager(
+            "wlan1", runner=runner, is_android=False, poll_interval=0
+        )
+
+        try:
+            selected_interface = manager.prepare()
+            scanner = WiFiScanner(
+                selected_interface,
+                retries=0,
+                command_runner=runner,
+            )
+            access_points = scanner.scan()
+        finally:
+            restore_failures = manager.restore()
+
+        self.assertEqual(restore_failures, ())
+        self.assertEqual(len(access_points), 1)
+        self.assertFalse(runner.link_up)
+
+        commands = [call[0] for call in runner.calls]
+        link_up = ("ip", "link", "set", "dev", "wlan1", "up")
+        scan = ("iw", "dev", "wlan1", "scan")
+        link_down = ("ip", "link", "set", "dev", "wlan1", "down")
+        self.assertLess(commands.index(link_up), commands.index(scan))
+        self.assertLess(commands.index(scan), commands.index(link_down))
+
     def test_auto_selection_prefers_an_interface_already_up(self):
         responses = {
             ("iw", "dev"): result(("iw", "dev"), IW_OUTPUT),

@@ -83,6 +83,12 @@ for cmd in "${REQUIRED_CMDS[@]}"; do
         echo "✓ Command available: $cmd"
     else
         echo "✗ Required command not found: $cmd"
+        if [[ "$cmd" == "ip" && -d "/data/data/com.termux" ]]; then
+            echo "  Install it with: pkg install iproute2 -y"
+        elif [[ "$cmd" == "iw" && -d "/data/data/com.termux" ]]; then
+            echo "  Enable its repository with: pkg install root-repo -y"
+            echo "  Then install it with: pkg install iw -y"
+        fi
         exit 1
     fi
 done

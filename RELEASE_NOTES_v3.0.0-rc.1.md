@@ -125,8 +125,8 @@ WiFiT v3.0.0-rc.1 is a **complete rewrite** bringing the toolkit to production q
 - **Platform**: Rooted Android with Termux (primary), Linux (secondary)
 - **Python**: 3.10 or higher
 - **Root Access**: Magisk or KernelSU required
-- **System Tools**: iw, wpa_supplicant, ip (usually pre-installed)
-- **Optional Tools**: pixiewps (for Pixie Dust), rfkill
+- **System Tools**: `ip`, `iw`, and `wpa_supplicant`
+- **Feature Tool**: `pixiewps` (required for Pixie Dust); `rfkill` remains optional
 
 ### Quick Install
 
@@ -136,7 +136,8 @@ curl -sL https://raw.githubusercontent.com/TuHiN22/WiFiT/agent/wifit-v3/install.
 
 # Or manual installation
 pkg update && pkg upgrade -y
-pkg install python git root-repo tsu -y
+pkg install root-repo -y
+pkg install python git tsu iproute2 iw wpa-supplicant pixiewps -y
 git clone -b agent/wifit-v3 https://github.com/TuHiN22/WiFiT.git
 cd WiFiT
 bash install.sh

@@ -185,6 +185,123 @@ def test_phase_python_helpers_have_a_repo_import_path() -> None:
     assert not failures, "Invalid validation Python launch contract:\n" + "\n".join(failures)
 
 
+def _extract_heredoc(source: str, delimiter: str) -> str:
+    """Extract one shell heredoc body whose delimiter appears alone."""
+
+    lines = source.splitlines()
+    opener_index = next(
+        index
+        for index, line in enumerate(lines)
+        if "<<" in line and delimiter in line
+    )
+    terminator_index = next(
+        index
+        for index in range(opener_index + 1, len(lines))
+        if lines[index].strip() == delimiter
+    )
+    return "\n".join(lines[opener_index + 1 : terminator_index])
+
+
+def test_phase2_prepares_and_restores_the_interface_around_scanning() -> None:
+    """Live scanning must use the state-preserving platform lifecycle."""
+
+    source = (VALIDATION_DIR / "02_test_scanner.sh").read_text(encoding="utf-8")
+    tree = ast.parse(_extract_heredoc(source, "EOFPYTHON"))
+
+    imported_names = {
+        imported.name
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom)
+        for imported in node.names
+    }
+    assert "PlatformManager" in imported_names
+    assert "CommandRunner" in imported_names
+
+    scanner_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "WiFiScanner"
+    ]
+    assert len(scanner_calls) == 1
+    scanner_call = scanner_calls[0]
+    assert scanner_call.args
+    assert isinstance(scanner_call.args[0], ast.Name)
+    assert scanner_call.args[0].id == "selected_interface"
+    assert any(
+        keyword.arg == "command_runner"
+        and isinstance(keyword.value, ast.Name)
+        and keyword.value.id == "runner"
+        for keyword in scanner_call.keywords
+    )
+
+    lifecycle_blocks = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Try)
+        if {
+            call.func.attr
+            for statement in node.body
+            for call in ast.walk(statement)
+            if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+        }
+        >= {"prepare", "scan"}
+        and any(
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Attribute)
+            and call.func.attr == "restore"
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "platform"
+            for statement in node.finalbody
+            for call in ast.walk(statement)
+        )
+    ]
+    assert len(lifecycle_blocks) == 1, (
+        "Phase 2 must protect prepare() and scan() with the same finally-based restore()"
+    )
+
+
+def test_termux_setup_installs_the_commands_used_by_validation() -> None:
+    """Fresh Termux installs must provide each executable under its package name."""
+
+    installer = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
+    package_assignment = re.search(r'^\s*PACKAGES="(?P<packages>[^"]+)"', installer, re.M)
+    assert package_assignment is not None
+    packages = set(package_assignment.group("packages").split())
+    assert {
+        "python",
+        "iproute2",
+        "tsu",
+        "iw",
+        "wpa-supplicant",
+        "pixiewps",
+    } <= packages
+    assert "python3" not in packages
+    assert "wireless-tools" not in packages
+
+    root_repo_install = installer.index("pkg install root-repo -y")
+    assert root_repo_install < package_assignment.start(), (
+        "root-repo must be enabled before installing its packages"
+    )
+    assert "check_termux || exit 1" in installer
+    assert "install_dependencies_termux || exit 1" in installer
+
+    procedure = (REPO_ROOT / "HARDWARE_VALIDATION_PROCEDURE.md").read_text(
+        encoding="utf-8"
+    )
+    documented_root_repo = procedure.index("pkg install root-repo -y")
+    documented_packages = procedure.index(
+        "pkg install python git tsu iproute2 iw wpa-supplicant pixiewps -y"
+    )
+    assert documented_root_repo < documented_packages
+
+    phase1 = (VALIDATION_DIR / "01_verify_environment.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "pkg install iproute2 -y" in phase1
+
+
 def test_html_report_passes_summary_as_heredoc_python_argv() -> None:
     """The report generator must terminate its heredoc and pass JSON as argv[1]."""
 

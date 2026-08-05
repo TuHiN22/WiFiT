@@ -42,9 +42,13 @@ else
 fi
 
 IW_BIN="$(command -v iw 2>/dev/null || true)"
+IP_BIN="$(command -v ip 2>/dev/null || true)"
 ENV_BIN="$(command -v env 2>/dev/null || true)"
-if [[ -z "$IW_BIN" || -z "$ENV_BIN" ]]; then
-    echo "✗ Required commands not found: iw and env are required"
+if [[ -z "$IW_BIN" || -z "$IP_BIN" || -z "$ENV_BIN" ]]; then
+    echo "✗ Required commands not found: iw, ip, and env are required"
+    if [[ -z "$IP_BIN" && -d "/data/data/com.termux" ]]; then
+        echo "  Install ip with: pkg install iproute2 -y"
+    fi
     exit 1
 fi
 
@@ -112,6 +116,8 @@ import os
 import sys
 from datetime import datetime, timezone
 
+from wifit_core.platform import PlatformManager
+from wifit_core.runner import CommandRunner
 from wifit_core.scanner import WiFiScanner
 from wifit_core.vulnerability import annotate_access_points
 
@@ -121,8 +127,26 @@ output_file = sys.argv[2]
 print(f"Scanning with interface: {interface}")
 
 try:
-    scanner = WiFiScanner(interface, retries=2, timeout=15.0)
-    access_points = scanner.scan()
+    runner = CommandRunner(default_timeout=20.0)
+    platform = PlatformManager(interface, runner=runner)
+    restore_failures = ()
+    try:
+        selected_interface = platform.prepare()
+        print(f"✓ Interface prepared: {selected_interface}")
+        scanner = WiFiScanner(
+            selected_interface,
+            retries=2,
+            timeout=15.0,
+            command_runner=runner,
+        )
+        access_points = scanner.scan()
+    finally:
+        restore_failures = platform.restore()
+        for failure in restore_failures:
+            print(f"✗ Restoration: {failure}", file=sys.stderr)
+
+    if restore_failures:
+        raise RuntimeError("platform state restoration failed")
 
     print(f"✓ Scan completed: {len(access_points)} networks found")
     annotated = annotate_access_points(access_points)

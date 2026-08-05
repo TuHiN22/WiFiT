@@ -33,7 +33,7 @@ check_termux() {
         echo -e "${GREEN}[+] Termux environment detected${NC}"
         return 0
     else
-        echo -e "${YELLOW}[!] This script is optimized for Termux${NC}"
+        echo -e "${RED}[-] This installer requires Termux${NC}"
         return 1
     fi
 }
@@ -43,16 +43,31 @@ install_dependencies_termux() {
     echo -e "${YELLOW}[*] Installing Termux dependencies...${NC}\n"
     
     echo -e "${BLUE}[*] Updating package lists...${NC}"
-    pkg update -y
-    pkg upgrade -y
+    if ! pkg update -y; then
+        echo -e "${RED}[-] Could not update Termux package lists${NC}"
+        return 1
+    fi
+    if ! pkg upgrade -y; then
+        echo -e "${RED}[-] Could not upgrade Termux packages${NC}"
+        return 1
+    fi
     
     echo -e "\n${BLUE}[*] Installing essential packages...${NC}"
-    # Enable the root repository before installing packages provided by it.
-    PACKAGES="python python3 root-repo tsu wireless-tools"
+    echo -e "${CYAN}[*] Enabling the Termux root package repository...${NC}"
+    if ! pkg install root-repo -y; then
+        echo -e "${RED}[-] Could not enable root-repo${NC}"
+        return 1
+    fi
+
+    # Package names are Termux package names, not executable aliases.
+    PACKAGES="python iproute2 tsu iw wpa-supplicant pixiewps"
     
     for package in $PACKAGES; do
         echo -e "${CYAN}[*] Installing $package...${NC}"
-        pkg install $package -y 2>/dev/null || echo -e "${YELLOW}[!] Could not install $package${NC}"
+        if ! pkg install "$package" -y; then
+            echo -e "${RED}[-] Could not install required package: $package${NC}"
+            return 1
+        fi
     done
     
     # Install Python packages
@@ -230,13 +245,13 @@ main() {
         fi
     fi
     
-    check_termux
+    check_termux || exit 1
     echo ""
     
-    install_dependencies_termux
+    install_dependencies_termux || exit 1
     echo ""
     
-    setup_root_access
+    setup_root_access || exit 1
     echo ""
     
     install_wifit

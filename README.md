@@ -120,10 +120,13 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
 ### Dependencies
 
 **Termux Packages:**
-- `python3` - Python interpreter
+- `python` - Python interpreter (`python`/`python3` commands)
 - `tsu` - Termux superuser utility
 - `root-repo` - Root-related packages
-- `wireless-tools` - WiFi utilities
+- `iproute2` - Interface state and link management (`ip`)
+- `iw` - Modern wireless interface and scan control
+- `wpa-supplicant` - WPS enrollee and control interface
+- `pixiewps` - Pixie Dust PIN recovery engine
 
 **Python Packages (Optional):**
 - `pyfiglet` - ASCII art banners

@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Hardware validators now import the checkout reliably from Termux temporary paths
 - Phase 1 verifies one-shot root access from a normal Termux shell
+- Termux setup now installs the correct `iproute2`, `iw`, `wpa-supplicant`, and
+  `pixiewps` packages in repository-safe order
+- Scanner validation prepares and restores a down wireless interface around scanning
 - HTML validation reports receive and parse their summary input correctly
 - The installer now packages both `wifit.py` and `wifit_core`
 - WPS version detection now distinguishes confirmed vs inferred 1.0
