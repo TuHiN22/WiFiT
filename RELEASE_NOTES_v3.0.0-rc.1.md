@@ -1,7 +1,7 @@
 # WiFiT v3.0.0-rc.1 Release Notes
 
-**Release Date:** 2026-08-05  
-**Status:** Release Candidate (Hardware Validation Pending)  
+**Release Date:** 2026-08-05<br>
+**Status:** Release Candidate (Core Hardware Validation Passed)<br>
 **Target:** OneShot-Extended master commit 12d24a62 functional parity  
 
 ---
@@ -71,7 +71,7 @@ WiFiT v3.0.0-rc.1 is a **complete rewrite** bringing the toolkit to production q
 - **Process safety**: Excludes PIDs 0, 1, self, parent, verifies identity before signaling
 
 #### Testing
-- **83 comprehensive tests** covering core functionality
+- **91 comprehensive tests** covering core functionality
 - **Deterministic fake tools**: No RF transmission in automated tests
 - **High coverage targets**: ≥85% overall, ≥90% critical modules
 - Unit tests for algorithms, data structures, parsers
@@ -88,7 +88,7 @@ WiFiT v3.0.0-rc.1 is a **complete rewrite** bringing the toolkit to production q
 
 ### 📊 Quality Gates Passing
 
-- ✅ **83/83 tests passing**
+- ✅ **91/91 tests passing**
 - ✅ Zero operational `shell=True`
 - ✅ All subprocess calls use argv lists
 - ✅ Every external operation has finite timeout
@@ -228,14 +228,15 @@ None. All v2.0 functionality preserved.
 
 ### This Release Candidate
 
-- ⚠️ **Hardware validation pending**: Not tested on actual wireless hardware
+- ✅ **Core hardware validation passed**: Environment, PIN generation, and live
+  scanning passed on rooted Android with Termux
 - ⚠️ **No live WPS attacks verified**: Core algorithms tested, full workflow untested
 - ⚠️ **pixiewps integration incomplete**: Parameter validation implemented, invocation untested
 - ⚠️ **wpa_supplicant integration partial**: Parsing logic ready, live usage untested
 
 ### Platform Support
 
-- ✅ **Rooted Android + Termux**: Primary platform (untested on hardware)
+- ✅ **Rooted Android + Termux**: Primary platform; core workflow validated on hardware
 - ⚠️ **Desktop Linux**: Should work but not tested
 - ❌ **macOS**: Not supported (different wireless stack)
 - ❌ **Windows**: Not supported (no native wireless monitor mode)
@@ -265,12 +266,18 @@ None. All v2.0 functionality preserved.
 - [x] Command runner (argv validation, timeouts, cleanup)
 - [x] Vulnerability annotation (WSC fingerprinting)
 
-### ⏸️ Hardware Tests (Pending Authorized Lab)
+### ✅ Core Hardware Tests (Validated 2026-08-05)
 
-- [ ] Scan actual networks with `iw dev wlan0 scan`
-- [ ] WPS version detection on real APs
+- [x] Root access, Python 3.14.6, Termux tools, and wireless interfaces detected
+- [x] All 39 registered PIN algorithms generated valid, unique-checksummed output
+- [x] Scan actual networks with `iw` after bounded interface preparation
+- [x] Parse Unicode and hidden SSIDs from live scan results
+- [x] WPS 2.0, WPA3, and WSC metadata detected on real APs
+- [x] Restore the scanner interface after validation
+
+### ⏸️ Extended Hardware Tests (Pending Authorized Lab)
+
 - [ ] Lock state detection accuracy
-- [ ] WSC metadata extraction completeness
 - [ ] Pixie Dust attack against vulnerable AP
 - [ ] PIN bruteforce first-half validation
 - [ ] Resume interrupted brute force
@@ -371,11 +378,11 @@ WiFiT v3.0.0-rc.1 builds upon concepts and code from:
 
 ## Next Steps
 
-1. **Hardware Validation**: Test on authorized lab networks
+1. **Extended Hardware Validation**: Test live WPS attack workflows in an authorized lab
 2. **Complete Attack Integration**: Wire up PIN generators to wpa_supplicant
 3. **Pixiewps Integration**: Complete parameter passing and output parsing
 4. **Stress Testing**: 10K-BSS scans, 48-hour brute force
-5. **Stable Release**: After hardware validation, tag v3.0.0
+5. **Stable Release**: After extended hardware validation, tag v3.0.0
 
 ---
 

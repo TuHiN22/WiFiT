@@ -55,7 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - This is a prerelease (RC) version
-- Hardware validation pending
+- Core environment, PIN generation, and live scanner validation passed on rooted
+  Android with Termux; live WPS attack validation remains pending
 - Designed for rooted Android devices with Termux
 - Functional parity with OneShot-Extended master commit 12d24a62
 
