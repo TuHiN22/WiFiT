@@ -5,14 +5,53 @@ All notable changes to WiFiT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0-rc.2] - 2026-08-05
+
+### Added
+- **Live WPS attack integration** (`wifit_core/wps_attack.py`)
+  - WPASupplicantController for socket-based wpa_supplicant control
+  - PIN/null-PIN/empty-PIN/zero-PIN attack methods
+  - PBC (Push Button Configuration) support with targeted BSSID
+  - First-half validity detection for split-half optimization
+  - Pixie Dust parameter extraction during attacks
+- **Validated Pixiewps wrapper** (`wifit_core/pixie_dust.py`)
+  - Complete parameter validation (PKE, PKR, E-Hash1/2, AuthKey, E-Nonce)
+  - Proper length and hex character validation
+  - Timeout support with minimum 10s enforcement
+  - Force flag for full keyspace search
+- **Hardware validation scripts** (Phase 4-8)
+  - `04_test_process_management.sh` - Process lifecycle validation
+  - `05_test_wps_attacks.sh` - Live attack framework tests with authorization check
+  - `06_test_reporter.sh` - Export system validation
+  - `07_stress_bruteforce.sh` - 1000+ PIN stress test
+  - `08_test_recovery.sh` - Session resume and cleanup tests
+- **GitHub Actions CI workflow**
+  - Test matrix for Python 3.10, 3.11, 3.12
+  - Code quality checks (Ruff, mypy, Bandit)
+  - Package build verification
+  - Coverage reporting to Codecov
+- **AttackResult enhancements**
+  - Proper `wps_pin` and `network_key` fields
+  - `finished_at` timestamp tracking
+  - Compatibility aliases (`pin`, `psk`)
+  - First-half validity metadata
+
+### Changed
+- Updated version to 3.0.0-rc.2 across all modules
+- Exported new modules in `wifit_core/__init__.py`
+- Enhanced test suite to 103 tests (all passing)
+- Validation framework now covers all 8 phases
+
+### Fixed
+- Import paths in `__init__.py` (use `get_likely_pins`, `generate_pin`)
+- AttackResult field names to match existing interface
+- Datetime handling with timezone-aware timestamps
+
 ## [3.0.0-rc.1] - 2026-08-05
 
 ### Added
-- Complete PIN generation module with all 39 registered offline algorithms
+- Complete PIN generation module with all 30 WPS algorithms
 - Deterministic, resumable split-half online WPS brute force
-- True empty PIN, null PIN, explicit `00000000` PIN support
-- Targeted PBC (Push Button Configuration) attack
-- Validated Pixie Dust with PKE, PKR, hashes, AuthKey, nonces, BSSID
 - Comprehensive CLI interface alongside interactive menu
 - Python packaging support (`pyproject.toml`)
 - WPA3 and transition mode detection in scanner
