@@ -7,16 +7,6 @@ Thank you for your interest in contributing to WiFiT!
 ### License
 WiFiT v3.0.0+ is licensed under the MIT License. By contributing, you agree that your contributions will be licensed under the same terms.
 
-### Required Warning
-All code that interacts with users (CLI, menu, documentation) MUST include this exact warning:
-
-```
-This tool is intended for educational and authorized penetration testing purposes only.
-It is not designed for, and must not be used for, illegal activities such as hacking, unauthorized access, or causing damage to systems or networks.
-By using this tool, you agree to use it responsibly and ethically, and to comply with all applicable laws and regulations.
-The developer assumes no responsibility for any misuse of this tool.
-```
-
 ### Attribution
 WiFiT builds upon concepts and code from multiple sources. When contributing significant algorithmic or architectural changes, please include appropriate attribution:
 
@@ -210,12 +200,6 @@ WiFiT's core functionality requires:
 - Wireless interface supporting monitor mode
 - Root/superuser access
 - Compatible wireless chipset (Broadcom, Atheros, Ralink, etc.)
-
-### Responsible Testing
-- ONLY test on networks you own or have explicit written permission to test
-- NEVER target networks without authorization
-- Document test environments in issues/PRs
-- Follow all applicable laws and regulations
 
 ### Test Lab Setup
 If contributing hardware-dependent features:

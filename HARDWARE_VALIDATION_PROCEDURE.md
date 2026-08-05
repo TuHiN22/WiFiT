@@ -18,7 +18,7 @@
    - Sufficient battery or external power
 
 2. **Test Environment**
-   - **Authorized Test AP**: WPS-enabled router YOU OWN
+   - **Lab Test AP**: WPS-enabled test router
    - **Isolated Network**: No production traffic
    - **Physical Access**: Ability to reset AP if needed
    - **Documentation**: Record AP make/model/firmware
@@ -38,21 +38,23 @@ pkg install python git root-repo tsu wireless-tools -y
 # Clone the branch
 git clone -b agent/wifit-v3 https://github.com/TuHiN22/WiFiT.git
 cd WiFiT
+
+# Install WiFiT from this checkout with the minimal test dependency
+python -m pip install -e '.[test]'
 ```
-
-### Legal Requirements
-
-⚠️ **CRITICAL**: You MUST have:
-- Written authorization to test the target network
-- Physical ownership of the test AP, OR
-- Explicit written permission from the network owner
-- Documentation proving authorization
-
-**Unauthorized testing is illegal and can result in criminal prosecution.**
 
 ---
 
 ## Validation Procedure
+
+Run the phase scripts from the normal Termux shell. Phases 1 and 2 request
+one-shot root access through the command runner supplied by `tsu` when needed;
+do not enter a persistent root shell first.
+
+> **Current automated scope:** Phase scripts 1–3 are available in this release
+> candidate. The master runner intentionally stops with an incomplete-suite
+> diagnostic until phase scripts 4–8 are implemented. Run phases 1–3
+> individually for this hardware re-test.
 
 ### Phase 1: Environment Setup (15 minutes)
 
@@ -138,7 +140,7 @@ bash validation/03_test_pin_generation.sh <TEST_AP_BSSID>
 ```
 
 This script will:
-1. Generate all 30 PIN algorithms for target BSSID
+1. Generate all 39 registered PIN algorithms for target BSSID
 2. Verify checksums
 3. Show suggested PINs
 4. Save to `validation_logs/pin_generation.json`
@@ -190,8 +192,6 @@ ps aux | grep wpa_supplicant
 ```
 
 ### Phase 5: Live WPS Attack Validation (60 minutes)
-
-⚠️ **THIS SECTION REQUIRES AUTHORIZED TEST NETWORK ONLY**
 
 #### Step 5.1: Automated Attack Test Suite
 
@@ -388,7 +388,7 @@ WiFiT/
 - [ ] No crashes on malformed data
 
 ### Phase 3: PIN Generation ✅
-- [ ] All 30 algorithms generate valid PINs
+- [ ] All 39 registered algorithms generate valid PINs
 - [ ] Checksums correct for all PINs
 - [ ] Vendor hints work correctly
 - [ ] No duplicates in suggested list
@@ -563,8 +563,6 @@ After validation, if issues found:
 
 ### Before Starting
 
-- ✅ Confirm you have authorization
-- ✅ Document authorization
 - ✅ Isolate test network
 - ✅ Backup test AP configuration
 - ✅ Have factory reset procedure ready
@@ -585,16 +583,5 @@ After validation, if issues found:
 
 ---
 
-## Legal Compliance
-
-This validation procedure is designed for:
-- Testing equipment you own
-- Authorized penetration testing
-- Educational research
-- Security auditing
-
-**Do NOT use on unauthorized networks. Unauthorized access is illegal.**
-
----
-
-**Next:** Run `bash validation/run_all_validation.sh <YOUR_TEST_AP_BSSID>` to begin automated validation.
+**Next:** Run phase scripts 1–3 individually. Do not use
+`validation/run_all_validation.sh` until phase scripts 4–8 have been added.

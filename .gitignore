@@ -54,6 +54,7 @@ Thumbs.db
 
 # WiFiT specific
 reports/
+validation_logs/
 .WiFiT/
 *.session
 *.pcap

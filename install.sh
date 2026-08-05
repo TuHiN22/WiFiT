@@ -2,7 +2,7 @@
 #
 # WiFiT Installation Script
 # Author: TuHiN
-# Version: 2.0.0
+# Version: 3.0.0-rc.1
 # Platform: Rooted Android + Termux
 # GitHub: https://github.com/TuHiN22/WiFiT
 #
@@ -20,7 +20,7 @@ show_banner() {
     clear
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                 WiFiT Installer v2.0.0                      ║"
+    echo "║              WiFiT Installer v3.0.0-rc.1                    ║"
     echo "║         Professional WPS Testing Toolkit for Termux         ║"
     echo "║                      Author: TuHiN                           ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
@@ -126,61 +126,29 @@ install_wifit() {
     
     echo -e "${BLUE}[*] Source directory: $SCRIPT_DIR${NC}"
     
-    # For Termux, install to $PREFIX/bin
-    if [ -d "/data/data/com.termux" ]; then
-        INSTALL_DIR="$PREFIX/bin"
-    else
-        INSTALL_DIR="/usr/local/bin"
-    fi
-    
-    echo -e "${BLUE}[*] Installation directory: $INSTALL_DIR${NC}"
-    
-    # Verify source file exists
-    if [ ! -f "$SCRIPT_DIR/wifit.py" ]; then
-        echo -e "${RED}[-] Error: $SCRIPT_DIR/wifit.py not found!${NC}"
+    # Verify the package source exists.
+    if [ ! -f "$SCRIPT_DIR/wifit.py" ] || [ ! -f "$SCRIPT_DIR/pyproject.toml" ]; then
+        echo -e "${RED}[-] Error: WiFiT package files not found in $SCRIPT_DIR${NC}"
         exit 1
     fi
-    
-    # Copy main script
-    echo -e "${BLUE}[*] Copying WiFiT script...${NC}"
-    
-    # First, copy the actual Python script
-    cp "$SCRIPT_DIR/wifit.py" "$INSTALL_DIR/wifit.py"
-    chmod +x "$INSTALL_DIR/wifit.py"
-    
-    # Then create wrapper script
-    cat > "$INSTALL_DIR/wifit" << 'EOF'
-#!/bin/bash
-# WiFiT wrapper; wifit.py handles root elevation.
 
-# Resolve the installed script relative to this wrapper so it works from any
-# current directory and does not depend on PREFIX surviving elevation.
-WIFIT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-WIFIT_SCRIPT="$WIFIT_DIR/wifit.py"
+    local python_bin
+    python_bin="$(command -v python3 2>/dev/null || command -v python 2>/dev/null)"
+    if [ -z "$python_bin" ]; then
+        echo -e "${RED}[-] Error: Python 3 not found${NC}"
+        exit 1
+    fi
 
-if [ ! -f "$WIFIT_SCRIPT" ]; then
-    echo "[-] WiFiT script not found!"
-    exit 1
-fi
-
-if [ -x "$WIFIT_DIR/python3" ]; then
-    PYTHON_BIN="$WIFIT_DIR/python3"
-elif command -v python3 >/dev/null 2>&1; then
-    PYTHON_BIN="$(command -v python3)"
-else
-    echo "[-] Python 3 not found!"
-    exit 1
-fi
-
-exec "$PYTHON_BIN" "$WIFIT_SCRIPT" "$@"
-EOF
-    
-    chmod +x "$INSTALL_DIR/wifit"
+    echo -e "${BLUE}[*] Installing the WiFiT package and command...${NC}"
+    if ! "$python_bin" -m pip install "$SCRIPT_DIR"; then
+        echo -e "${RED}[-] WiFiT package installation failed${NC}"
+        exit 1
+    fi
     
     # Create reports directory
     mkdir -p "$SCRIPT_DIR/reports"
     
-    echo -e "${GREEN}[+] WiFiT installed successfully!${NC}"
+    echo -e "${GREEN}[+] WiFiT package installed successfully!${NC}"
 }
 
 # Check installation

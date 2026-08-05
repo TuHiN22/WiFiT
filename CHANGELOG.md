@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0-rc.1] - 2026-08-05
 
 ### Added
-- Complete PIN generation module with all 30 offline algorithms
+- Complete PIN generation module with all 39 registered offline algorithms
 - Deterministic, resumable split-half online WPS brute force
 - True empty PIN, null PIN, explicit `00000000` PIN support
 - Targeted PBC (Push Button Configuration) attack
@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced error messages with context and recovery suggestions
 
 ### Fixed
+- Hardware validators now import the checkout reliably from Termux temporary paths
+- Phase 1 verifies one-shot root access from a normal Termux shell
+- HTML validation reports receive and parse their summary input correctly
+- The installer now packages both `wifit.py` and `wifit_core`
 - WPS version detection now distinguishes confirmed vs inferred 1.0
 - CSV export neutralizes spreadsheet formula injection
 - Process manager journal prevents orphaned processes after crashes
@@ -48,10 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - This is a prerelease (RC) version
-- Hardware validation on authorized targets pending
+- Hardware validation pending
 - Designed for rooted Android devices with Termux
 - Functional parity with OneShot-Extended master commit 12d24a62
-- For educational and authorized penetration testing purposes only
 
 ## [2.0.0] - 2026-01-15
 

@@ -103,7 +103,7 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
 - **Device**: Rooted Android device
 - **Root Method**: Magisk or KernelSU
 - **Termux**: Latest version from F-Droid
-- **Python**: 3.6 or higher
+- **Python**: 3.10 or higher
 - **Root Access**: Required for WiFi operations
 
 ### Root Setup

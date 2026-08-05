@@ -25,7 +25,7 @@ WiFiT v3.0.0-rc.1 is a **complete rewrite** bringing the toolkit to production q
 ### 🎯 Major Features
 
 #### Complete PIN Generation System
-- **All 30 WPS PIN algorithms** implemented and tested
+- **All 39 registered WPS PIN algorithms** implemented and tested
 - MAC-based algorithms: pin24, pin28, pin32, pin36, pin40, pin44
 - Vendor-specific: D-Link, ASUS, Airocon, and 14 variants
 - 22 static/default PINs for known vulnerable routers
@@ -252,7 +252,7 @@ None. All v2.0 functionality preserved.
 
 ### ✅ Automated Tests (Complete)
 
-- [x] PIN generation algorithms (all 30)
+- [x] PIN generation algorithms (all 39 registered algorithms)
 - [x] WPS checksum validation
 - [x] Split-half brute force logic
 - [x] Session save/load/resume

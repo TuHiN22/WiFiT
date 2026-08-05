@@ -47,9 +47,39 @@ show_banner() {
     cat << 'EOF' | tee -a "$MASTER_LOG"
 ╔══════════════════════════════════════════════════════════════╗
 ║        WiFiT v3.0.0-rc.1 Hardware Validation Suite         ║
-║                     AUTHORIZED TESTING ONLY                  ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
+}
+
+# Refuse to present a partial checkout as a complete validation suite.
+check_phase_scripts() {
+    local required_scripts=(
+        "01_verify_environment.sh"
+        "02_test_scanner.sh"
+        "03_test_pin_generation.sh"
+        "04_test_process_management.sh"
+        "05_test_wps_attacks.sh"
+        "06_test_reporter.sh"
+        "07_stress_bruteforce.sh"
+        "08_test_recovery.sh"
+    )
+    local missing_scripts=()
+    local script_name
+
+    for script_name in "${required_scripts[@]}"; do
+        if [[ ! -f "$SCRIPT_DIR/$script_name" ]]; then
+            missing_scripts+=("$script_name")
+        fi
+    done
+
+    if (( ${#missing_scripts[@]} > 0 )); then
+        log_error "Validation suite is incomplete; missing phase scripts:"
+        for script_name in "${missing_scripts[@]}"; do
+            log_error "  - $script_name"
+        done
+        log_error "Run the available phase scripts individually until the missing phases are implemented."
+        exit 2
+    fi
 }
 
 # Check if running as root
@@ -65,8 +95,6 @@ if [[ $# -lt 1 ]]; then
     echo "Usage: sudo bash $0 <TEST_AP_BSSID>"
     echo ""
     echo "Example: sudo bash $0 AA:BB:CC:DD:EE:FF"
-    echo ""
-    echo "IMPORTANT: You must have authorization to test the target network."
     exit 1
 fi
 
@@ -79,6 +107,7 @@ log_info "Target BSSID: $TEST_BSSID"
 log_info "Logs directory: $LOGS_DIR"
 log_info "Master log: $MASTER_LOG"
 
+check_phase_scripts
 check_root
 
 # Test results tracking
@@ -99,13 +128,13 @@ run_phase() {
     log_info "Phase $phase_num: $phase_name"
     log_info "=========================================="
     
-    local phase_log="$LOGS_DIR/phase${phase_num}_${script_name%.sh}.log"
+    local phase_log="$LOGS_DIR/phase${phase_num}_${script_name%.sh}_$TIMESTAMP.log"
     
     if [[ -f "$SCRIPT_DIR/$script_name" ]]; then
         if bash "$SCRIPT_DIR/$script_name" "${script_args[@]}" 2>&1 | tee -a "$phase_log" "$MASTER_LOG"; then
             log_success "Phase $phase_num: $phase_name - PASSED"
             PHASE_RESULTS[$phase_num]="PASSED"
-            ((PASSED_PHASES++))
+            ((PASSED_PHASES += 1))
             return 0
         else
             log_error "Phase $phase_num: $phase_name - FAILED"
@@ -131,10 +160,9 @@ run_phase 3 "PIN Generation" "03_test_pin_generation.sh" "$TEST_BSSID" || true
 # Phase 4: Process Management
 run_phase 4 "Process Management" "04_test_process_management.sh" || true
 
-# Phase 5: WPS Attacks (Critical - requires authorization)
+# Phase 5: Live WPS operations
 log_warning ""
 log_warning "Phase 5 will perform LIVE WPS attacks on $TEST_BSSID"
-log_warning "Ensure you have authorization to test this network!"
 read -p "Continue with live attacks? (yes/no): " -r
 echo
 if [[ $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
@@ -226,10 +254,16 @@ log_info "Summary JSON saved to: $SUMMARY_JSON"
 
 # Generate HTML Report
 HTML_REPORT="$LOGS_DIR/validation_report_$TIMESTAMP.html"
-bash "$SCRIPT_DIR/generate_html_report.sh" "$SUMMARY_JSON" "$MASTER_LOG" "$HTML_REPORT" 2>&1 | tee -a "$MASTER_LOG" || true
-
-if [[ -f "$HTML_REPORT" ]]; then
+if bash "$SCRIPT_DIR/generate_html_report.sh" \
+    "$SUMMARY_JSON" "$MASTER_LOG" "$HTML_REPORT" 2>&1 | tee -a "$MASTER_LOG"; then
+    if [[ ! -s "$HTML_REPORT" ]]; then
+        log_error "HTML report generator returned success but produced an empty file"
+        exit 1
+    fi
     log_info "HTML report saved to: $HTML_REPORT"
+else
+    log_error "HTML report generation failed"
+    exit 1
 fi
 
 # Final status

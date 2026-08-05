@@ -3,11 +3,10 @@
 """
 WiFiT - Professional WPS Penetration Testing Tool
 Author: TuHiN
-Version: 2.0.0
+Version: 3.0.0-rc.1
 
 Designed for Rooted Android Devices with Termux
 A hybrid WiFi hacking tool combining the best features from multiple sources.
-For educational and authorized testing purposes only.
 """
 
 import sys
@@ -15,6 +14,7 @@ import subprocess
 import os
 import tempfile
 import shutil
+import shlex
 import re
 import codecs
 import socket
@@ -306,12 +306,17 @@ class PixiewpsData:
                 and self.e_hash1 and self.e_hash2)
 
     def get_pixie_cmd(self, full_range=False):
-        pixiecmd = "pixiewps --pke {} --pkr {} --e-hash1 {}"\
-                    " --e-hash2 {} --authkey {} --e-nonce {}".format(
-                    self.pke, self.pkr, self.e_hash1,
-                    self.e_hash2, self.authkey, self.e_nonce)
+        pixiecmd = [
+            "pixiewps",
+            "--pke", self.pke,
+            "--pkr", self.pkr,
+            "--e-hash1", self.e_hash1,
+            "--e-hash2", self.e_hash2,
+            "--authkey", self.authkey,
+            "--e-nonce", self.e_nonce,
+        ]
         if full_range:
-            pixiecmd += ' --force'
+            pixiecmd.append("--force")
         return pixiecmd
 
 
@@ -536,15 +541,33 @@ class Companion:
 
     def __init_wpa_supplicant(self):
         print('[*] Running wpa_supplicant…')
-        cmd = 'wpa_supplicant -K -d -Dnl80211,wext,hostapd,wired -i{} -c{}'.format(self.interface, self.tempconf)
-        self.wpas = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+        cmd = [
+            'wpa_supplicant',
+            '-K',
+            '-d',
+            '-Dnl80211,wext,hostapd,wired',
+            f'-i{self.interface}',
+            f'-c{self.tempconf}',
+        ]
+        self.wpas = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT, encoding='utf-8', errors='replace')
+        startup_deadline = time.monotonic() + 15.0
         while True:
             ret = self.wpas.poll()
             if ret is not None and ret != 0:
                 raise ValueError('wpa_supplicant returned an error')
             if os.path.exists(self.wpas_ctrl_path):
                 break
+            if time.monotonic() >= startup_deadline:
+                self.wpas.terminate()
+                try:
+                    self.wpas.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    self.wpas.kill()
+                    self.wpas.wait(timeout=3)
+                raise TimeoutError(
+                    'wpa_supplicant control socket was not ready within 15 seconds'
+                )
             time.sleep(.1)
 
     def sendOnly(self, command):
@@ -655,9 +678,15 @@ class Companion:
         print("[*] Running Pixiewps…")
         cmd = self.pixie_creds.get_pixie_cmd(full_range)
         if showcmd:
-            print(cmd)
-        r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
-                           stderr=sys.stdout, encoding='utf-8', errors='replace')
+            print(shlex.join(cmd))
+        r = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=sys.stdout,
+            encoding='utf-8',
+            errors='replace',
+            timeout=120,
+        )
         print(r.stdout)
         if r.returncode == 0:
             lines = r.stdout.splitlines()
@@ -845,9 +874,15 @@ class WiFiScanner:
             if flag:
                 networks[-1]['WPS locked'] = True
 
-        cmd = 'iw dev {} scan'.format(self.interface)
-        proc = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT, encoding='utf-8', errors='replace')
+        cmd = ['iw', 'dev', self.interface, 'scan']
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding='utf-8',
+            errors='replace',
+            timeout=30,
+        )
         lines = proc.stdout.splitlines()
         networks = []
         
@@ -903,7 +938,12 @@ class MenuHandler:
     def _get_wifi_interface(self):
         """Detect WiFi interface"""
         try:
-            result = subprocess.run("ip link show", shell=True, capture_output=True, text=True)
+            result = subprocess.run(
+                ['ip', 'link', 'show'],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
             output = result.stdout
             
             for interface in ["wlan0", "wlo1", "wlp2s0"]:
@@ -933,7 +973,12 @@ class MenuHandler:
         # Step 2: Remove conflicting tsu packages
         print("\n\033[1;36m[2/5]\033[0m Removing conflicting tsu packages...")
         try:
-            result = subprocess.run("pkg uninstall tsu -y", shell=True, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(
+                ['pkg', 'uninstall', 'tsu', '-y'],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
             if result.returncode == 0:
                 print("      \033[1;32m✓ Removed old tsu package\033[0m")
                 issues_fixed += 1
@@ -948,7 +993,12 @@ class MenuHandler:
         for pkg in packages:
             try:
                 print(f"      Installing {pkg}...")
-                result = subprocess.run(f"pkg install {pkg} -y", shell=True, capture_output=True, text=True, timeout=60)
+                result = subprocess.run(
+                    ['pkg', 'install', pkg, '-y'],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
                 if result.returncode == 0:
                     print(f"      \033[1;32m✓ Installed {pkg}\033[0m")
                     issues_fixed += 1
@@ -1223,7 +1273,7 @@ class MenuHandler:
     def run_menu(self):
         """Main menu loop"""
         while True:
-            os.system('clear' if os.name == 'posix' else 'cls')
+            print('\033[2J\033[H', end='')
             show_wifit_banner()
             show_main_menu()
             
@@ -1260,8 +1310,8 @@ class MenuHandler:
 
 def main():
     """Main entry point"""
-    if sys.hexversion < 0x03060F0:
-        print("[-] This program requires Python 3.6 or higher")
+    if sys.version_info < (3, 10):
+        print("[-] This program requires Python 3.10 or higher")
         sys.exit(1)
     
     # Check and get root access automatically
