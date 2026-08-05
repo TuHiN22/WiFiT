@@ -4,16 +4,17 @@
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                    🛡️  WiFiT v2.0.0                         ║
+║                   🛡️  WiFiT v3.0.0-rc.1                     ║
 ║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
-[![Python Version](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Rooted%20Android%20%2B%20Termux-brightgreen.svg)](https://github.com/TuHiN22/WiFiT)
 [![Root Required](https://img.shields.io/badge/root-required-red.svg)](https://magisk.me/)
+[![Version](https://img.shields.io/badge/version-3.0.0--rc.1-orange.svg)](CHANGELOG.md)
 
 **🔥 Designed exclusively for Rooted Android Devices with Termux**
 
@@ -22,6 +23,20 @@
 [Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Legal](#%EF%B8%8F-legal-disclaimer)
 
 </div>
+
+---
+
+## ⚠️ IMPORTANT LEGAL WARNING
+
+**This tool is intended for educational and authorized penetration testing purposes only.**
+
+**It is not designed for, and must not be used for, illegal activities such as hacking, unauthorized access, or causing damage to systems or networks.**
+
+**By using this tool, you agree to use it responsibly and ethically, and to comply with all applicable laws and regulations.**
+
+**The developer assumes no responsibility for any misuse of this tool.**
+
+**Unauthorized access to computer networks is illegal in most countries and can result in criminal prosecution.**
 
 ---
 

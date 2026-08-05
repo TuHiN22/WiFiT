@@ -9,6 +9,8 @@ QUICKSTART.md
 PROJECT_SUMMARY.md
 COMPLETION_SUMMARY.md
 COMMIT_SUMMARY.txt
+rebrand_config.yaml
+upstream.txt
 
 # Python
 __pycache__/

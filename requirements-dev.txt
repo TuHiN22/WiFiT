@@ -1,0 +1,24 @@
+# WiFiT v3.0.0-rc.1 Development Dependencies
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.1.0
+
+# Type Checking
+mypy>=1.5.0
+types-psutil>=5.9.0
+
+# Linting & Formatting
+ruff>=0.1.0
+
+# Security Scanning
+bandit[toml]>=1.7.5
+
+# Optional Runtime Dependencies (for complete local testing)
+pyfiglet>=0.8.0
+psutil>=5.9.0
+
+# Documentation (if needed)
+# mkdocs>=1.5.0
+# mkdocs-material>=9.0.0
