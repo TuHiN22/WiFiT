@@ -477,7 +477,7 @@ def show_wifit_banner():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     banner = f"""
 \033[1;36m╔══════════════════════════════════════════════════════════════╗
-║                    🛡️  WiFiT v2.0.0                         ║
+║                   🛡️  WiFiT v3.0.0-rc.1                     ║
 ║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╠══════════════════════════════════════════════════════════════╣
