@@ -3,7 +3,7 @@
 A modular, testable implementation of WPS security assessment tools.
 """
 
-__version__ = "3.0.0-rc.4"
+__version__ = "3.0.0-rc.5"
 
 from .models import (
     AccessPoint,

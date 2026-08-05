@@ -147,7 +147,7 @@ import tempfile
 import os
 test_journal = tempfile.mktemp(suffix=\".json\")
 pm = ProcessManager(journal_path=test_journal)
-# Don't call private methods - test public API
+# Do not call private methods - test public API
 print(\"Cleanup verification passed\")
 '"
     

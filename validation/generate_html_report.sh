@@ -45,7 +45,7 @@ cat > "$OUTPUT_TMP" << 'EOF'
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFiT v3.0.0-rc.1 Validation Report</title>
+    <title>WiFiT Validation Report</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -94,7 +94,7 @@ cat > "$OUTPUT_TMP" << 'EOF'
 </head>
 <body>
     <div class="header">
-        <h1>WiFiT v3.0.0-rc.1</h1>
+        <h1>WiFiT</h1>
         <p>Hardware Validation Report</p>
     </div>
 EOF

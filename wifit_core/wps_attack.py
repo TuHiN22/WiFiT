@@ -256,7 +256,7 @@ class WPASupplicantController:
         bssid_normalized = normalize_bssid(bssid)
         progress = AttackProgress()
         wall_started_at = datetime.now(timezone.utc)
-        deadline = time.time() + timeout
+        deadline = time.monotonic() + timeout
         
         # Determine attack method
         if pin == "":
@@ -286,7 +286,7 @@ class WPASupplicantController:
         progress.attempts = 1
         
         # Monitor wpa_supplicant events
-        while time.time() < deadline:
+        while time.monotonic() < deadline:
             try:
                 events = self._receive_events(timeout=1.0)
                 for event in events:
@@ -378,7 +378,7 @@ class WPASupplicantController:
         bssid_normalized = normalize_bssid(bssid)
         progress = AttackProgress()
         wall_started_at = datetime.now(timezone.utc)
-        deadline = time.time() + timeout
+        deadline = time.monotonic() + timeout
         
         # Send WPS_REG without PIN parameter (true null PIN)
         cmd = f"WPS_REG {bssid_normalized}"
@@ -399,7 +399,7 @@ class WPASupplicantController:
         progress.attempts = 1
         
         # Monitor wpa_supplicant events
-        while time.time() < deadline:
+        while time.monotonic() < deadline:
             try:
                 events = self._receive_events(timeout=1.0)
                 for event in events:
@@ -493,7 +493,7 @@ class WPASupplicantController:
         progress.attempts = 1
         
         # Monitor for PBC success
-        while time.time() < deadline:
+        while time.monotonic() < deadline:
             try:
                 events = self._receive_events(timeout=2.0)
                 for event in events:
@@ -502,7 +502,7 @@ class WPASupplicantController:
                     if progress.status == "GOT_PSK":
                         self._send_command("WPS_CANCEL", expect_response=False)
                         return AttackResult(
-                            bssid=result_bssid or progress.essid or "",
+                            bssid=result_bssid or "",
                             ssid=progress.essid,
                             method=AttackMethod.PBC,
                             outcome=AttackOutcome.SUCCESS,

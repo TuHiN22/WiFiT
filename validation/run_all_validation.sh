@@ -219,6 +219,9 @@ log_info "Passed Phases: $PASSED_PHASES / $TOTAL_PHASES"
 log_info "Validation completed at $(date)"
 log_info "Full log saved to: $MASTER_LOG"
 
+# Get dynamic version from wifit_core
+WIFIT_VERSION=$(python3 -c "from wifit_core import __version__; print(__version__)" 2>/dev/null || echo "unknown")
+
 # Generate JSON summary
 SUMMARY_JSON="$LOGS_DIR/validation_summary_$TIMESTAMP.json"
 cat > "$SUMMARY_JSON" << EOF
@@ -226,7 +229,7 @@ cat > "$SUMMARY_JSON" << EOF
   "validation_run": {
     "timestamp": "$TIMESTAMP",
     "target_bssid": "$TEST_BSSID",
-    "wifit_version": "3.0.0-rc.1",
+    "wifit_version": "$WIFIT_VERSION",
     "branch": "agent/wifit-v3"
   },
   "phases": {
@@ -266,15 +269,16 @@ else
     exit 1
 fi
 
-# Final status
-if [[ $PASSED_PHASES -ge 6 ]]; then
+# Final status - require ALL 8 phases for stable release
+if [[ $PASSED_PHASES -eq 8 ]]; then
     log_success ""
     log_success "✓ VALIDATION PASSED"
-    log_success "WiFiT v3.0.0-rc.1 is ready for stable release"
+    log_success "WiFiT is ready for stable release - all 8 phases passed"
     exit 0
 else
     log_error ""
     log_error "✗ VALIDATION FAILED"
-    log_error "Fix issues before tagging stable release"
+    log_error "Passed: $PASSED_PHASES/8 phases"
+    log_error "All 8 phases must pass for stable release"
     exit 1
 fi
