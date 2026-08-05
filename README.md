@@ -26,18 +26,6 @@
 
 ---
 
-## ⚠️ IMPORTANT LEGAL WARNING
-
-**This tool is intended for educational and authorized penetration testing purposes only.**
-
-**It is not designed for, and must not be used for, illegal activities such as hacking, unauthorized access, or causing damage to systems or networks.**
-
-**By using this tool, you agree to use it responsibly and ethically, and to comply with all applicable laws and regulations.**
-
-**The developer assumes no responsibility for any misuse of this tool.**
-
-**Unauthorized access to computer networks is illegal in most countries and can result in criminal prosecution.**
-
 ---
 
 ## 🎯 About
