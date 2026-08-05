@@ -381,45 +381,75 @@ def check_root():
 
 
 def get_root_access():
-    """Automatically elevate to root in Termux"""
+    """Replace this process with a root WiFiT process."""
     if check_root():
         return True
-    
-    print("\033[1;33m[*] Root access required. Attempting to elevate...\033[0m")
-    
-    # Build the command
-    script_path = os.path.abspath(__file__)
-    cmd_args = sys.argv[1:] if len(sys.argv) > 1 else []
-    
-    # Try tsu first (Termux preferred method)
-    # Use absolute path to python3
-    try:
-        python_path = '/data/data/com.termux/files/usr/bin/python3'
-        if not os.path.exists(python_path):
-            python_path = 'python3'  # fallback
-        
-        tsu_cmd = ['tsu', python_path, script_path] + cmd_args
-        os.execv('/data/data/com.termux/files/usr/bin/tsu', tsu_cmd)
-    except (FileNotFoundError, PermissionError, Exception) as e:
-        pass
-    
-    # Try su as fallback
-    try:
-        cmd_str = f"python3 {script_path} {' '.join(cmd_args)}".strip()
-        os.execvp('su', ['su', '-c', cmd_str])
-    except (FileNotFoundError, PermissionError, Exception):
-        pass
-    
-    # Try sudo as last resort
-    try:
-        os.execvp('sudo', ['sudo', 'python3', script_path] + cmd_args)
-    except (FileNotFoundError, PermissionError, Exception):
-        pass
-    
+
+    print(
+        "\033[1;33m[*] Root access required. Attempting to elevate...\033[0m",
+        flush=True,
+    )
+
+    prefix = os.environ.get('PREFIX') or '/data/data/com.termux/files/usr'
+    python_candidates = [
+        sys.executable,
+        os.path.join(prefix, 'bin', 'python3'),
+        shutil.which('python3'),
+    ]
+    python_path = None
+    checked_paths = set()
+    for candidate in python_candidates:
+        if not candidate:
+            continue
+        if not os.path.isabs(candidate):
+            candidate = shutil.which(candidate)
+        if not candidate or candidate in checked_paths:
+            continue
+        checked_paths.add(candidate)
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            python_path = os.path.realpath(candidate)
+            break
+
+    if not python_path:
+        print("\033[1;31m[-] Python 3 executable not found\033[0m")
+        return False
+
+    script_path = os.path.realpath(__file__)
+    root_command = [python_path, script_path] + list(sys.argv[1:])
+
+    # tsu accepts a USER positional argument, not a command.  The tsu package
+    # installs a "sudo" alias specifically for one-shot commands and chooses
+    # that mode from the invoked filename, so the sudo path must not be
+    # resolved through its symlink to tsu.
+    sudo_candidates = [
+        os.path.join(prefix, 'bin', 'sudo'),
+        shutil.which('sudo'),
+    ]
+
+    launch_errors = []
+    attempted_paths = set()
+    for sudo_path in sudo_candidates:
+        if not sudo_path or sudo_path in attempted_paths:
+            continue
+        attempted_paths.add(sudo_path)
+        if not (os.path.isfile(sudo_path) and os.access(sudo_path, os.X_OK)):
+            continue
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os.execv(sudo_path, [sudo_path] + root_command)
+        except OSError as error:
+            launch_errors.append(error)
+
+    # Raw Android su does not recreate the PATH, HOME, TMPDIR and linker
+    # environment required by Termux programs.  Fail with repair guidance
+    # instead of starting a partially configured root process.
     print("\033[1;31m[-] Failed to get root access\033[0m")
-    print("\033[1;33m[!] Please run: tsu\033[0m")
-    print("\033[1;33m[!] Then try again, or use Option 6 to fix root issues\033[0m")
-    return False
+    if launch_errors:
+        print("\033[1;31m[-] Elevation command failed: {}\033[0m".format(
+            launch_errors[-1]))
+    print("\033[1;33m[!] Install/reinstall tsu with: pkg install root-repo tsu\033[0m")
+    print("\033[1;33m[!] Then run wifit again and grant root permission\033[0m")
     return False
 
 
@@ -958,14 +988,25 @@ class MenuHandler:
         
         # Step 5: Test root access
         print("\n\033[1;36m[5/5]\033[0m Testing root access...")
-        test_commands = ['tsu -c "id"', 'su -c "id"']
+        prefix = os.environ.get('PREFIX') or '/data/data/com.termux/files/usr'
+        tsu_path = shutil.which('tsu')
+        sudo_path = (os.path.join(os.path.dirname(tsu_path), 'sudo')
+                     if tsu_path else os.path.join(prefix, 'bin', 'sudo'))
+        id_path = shutil.which('id') or 'id'
+        su_path = shutil.which('su')
+        test_commands = []
+        if os.path.isfile(sudo_path) and os.access(sudo_path, os.X_OK):
+            test_commands.append(('sudo', [sudo_path, id_path]))
+        if su_path:
+            test_commands.append(('su', [su_path, '-c', 'id']))
         root_works = False
-        
-        for cmd in test_commands:
+
+        for method, command in test_commands:
             try:
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                result = subprocess.run(
+                    command, capture_output=True, text=True, timeout=10)
                 if 'uid=0' in result.stdout:
-                    print(f"      \033[1;32m✓ Root access works with: {cmd.split()[0]}\033[0m")
+                    print(f"      \033[1;32m✓ Root access works with: {method}\033[0m")
                     root_works = True
                     issues_fixed += 1
                     break
@@ -988,9 +1029,9 @@ class MenuHandler:
             print("\n\033[1;33mTroubleshooting steps:\033[0m")
             print("  1. Install Magisk: https://github.com/topjohnwu/Magisk")
             print("  2. Or install KernelSU: https://kernelsu.org")
-            print("  3. Grant Termux root permission in Magisk/KernelSU")
-            print("  4. Run: tsu")
-            print("  5. Then run: wifit")
+            print("  3. Reinstall tsu: pkg install --reinstall tsu")
+            print("  4. Run: wifit")
+            print("  5. Grant the root permission prompt")
         
         input("\n\033[1;36mPress Enter to continue...\033[0m")
     

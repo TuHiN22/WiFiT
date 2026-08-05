@@ -47,7 +47,8 @@ install_dependencies_termux() {
     pkg upgrade -y
     
     echo -e "\n${BLUE}[*] Installing essential packages...${NC}"
-    PACKAGES="python python3 wireless-tools root-repo tsu"
+    # Enable the root repository before installing packages provided by it.
+    PACKAGES="python python3 root-repo tsu wireless-tools"
     
     for package in $PACKAGES; do
         echo -e "${CYAN}[*] Installing $package...${NC}"
@@ -65,6 +66,18 @@ install_dependencies_termux() {
     echo -e "\n${GREEN}[+] Dependencies installed successfully!${NC}"
 }
 
+# Locate the one-shot sudo alias installed beside tsu.  Do not resolve the
+# symlink: tsu selects command mode from the invoked filename "sudo".
+find_tsu_sudo() {
+    local tsu_bin
+    local sudo_bin
+
+    tsu_bin="$(command -v tsu 2>/dev/null)" || return 1
+    sudo_bin="$(dirname -- "$tsu_bin")/sudo"
+    [ -f "$sudo_bin" ] && [ -x "$sudo_bin" ] || return 1
+    printf '%s\n' "$sudo_bin"
+}
+
 # Setup root access
 setup_root_access() {
     echo -e "\n${YELLOW}[*] Setting up root access...${NC}\n"
@@ -80,24 +93,16 @@ setup_root_access() {
         echo -e "${BLUE}[*] Installing tsu for root access...${NC}"
         pkg install tsu -y 2>/dev/null
     fi
-    
-    # Test root access
-    echo -e "${BLUE}[*] Testing root access...${NC}"
-    
-    if tsu -c "id" 2>/dev/null | grep -q "uid=0"; then
-        echo -e "${GREEN}[+] Root access is working!${NC}"
-        return 0
-    else
-        echo -e "${YELLOW}[!] Root access not configured yet${NC}"
-        echo -e "${YELLOW}[!] You need to:${NC}"
-        echo -e "    1. Install Magisk or KernelSU"
-        echo -e "    2. Grant Termux root permission"
-        echo -e "    3. Run: ${CYAN}tsu${NC} (and grant permission)"
-        echo -e "    4. Then run: ${CYAN}wifit${NC}"
-        echo -e ""
-        echo -e "${BLUE}[i] WiFiT will auto-elevate to root when you run it${NC}"
+
+    if ! find_tsu_sudo >/dev/null; then
+        echo -e "${RED}[-] tsu's sudo command was not installed${NC}"
+        echo -e "${YELLOW}[!] Reinstall it with: pkg install --reinstall tsu${NC}"
         return 1
     fi
+
+    echo -e "${GREEN}[+] Automatic root elevation is configured${NC}"
+    echo -e "${BLUE}[i] WiFiT will request root permission on first launch${NC}"
+    return 0
 }
 
 # Install WiFiT
@@ -146,20 +151,28 @@ install_wifit() {
     # Then create wrapper script
     cat > "$INSTALL_DIR/wifit" << 'EOF'
 #!/bin/bash
-# WiFiT Wrapper Script - Auto elevates to root
+# WiFiT wrapper; wifit.py handles root elevation.
 
-# Check for wifit.py in installation directory
-if [ -f "$PREFIX/bin/wifit.py" ]; then
-    WIFIT_SCRIPT="$PREFIX/bin/wifit.py"
-elif [ -f "/usr/local/bin/wifit.py" ]; then
-    WIFIT_SCRIPT="/usr/local/bin/wifit.py"
-else
+# Resolve the installed script relative to this wrapper so it works from any
+# current directory and does not depend on PREFIX surviving elevation.
+WIFIT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+WIFIT_SCRIPT="$WIFIT_DIR/wifit.py"
+
+if [ ! -f "$WIFIT_SCRIPT" ]; then
     echo "[-] WiFiT script not found!"
     exit 1
 fi
 
-# Run with python3
-python3 "$WIFIT_SCRIPT" "$@"
+if [ -x "$WIFIT_DIR/python3" ]; then
+    PYTHON_BIN="$WIFIT_DIR/python3"
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python3)"
+else
+    echo "[-] Python 3 not found!"
+    exit 1
+fi
+
+exec "$PYTHON_BIN" "$WIFIT_SCRIPT" "$@"
 EOF
     
     chmod +x "$INSTALL_DIR/wifit"
@@ -186,14 +199,18 @@ check_installation() {
     
     command -v python3 &> /dev/null && echo -e "${GREEN}  ✓ Python 3${NC}" || echo -e "${RED}  ✗ Python 3${NC}"
     command -v tsu &> /dev/null && echo -e "${GREEN}  ✓ tsu (root access)${NC}" || echo -e "${YELLOW}  ! tsu (install with: pkg install tsu)${NC}"
+    find_tsu_sudo &> /dev/null && echo -e "${GREEN}  ✓ tsu command runner${NC}" || echo -e "${YELLOW}  ! tsu sudo alias missing${NC}"
     
     # Check root access
     echo -e "\n${BLUE}[*] Checking root access:${NC}"
-    if tsu -c "id" 2>/dev/null | grep -q "uid=0"; then
-        echo -e "${GREEN}  ✓ Root access available${NC}"
+    if [ "$(id -u)" = "0" ]; then
+        echo -e "${GREEN}  ✓ Root access active${NC}"
+    elif find_tsu_sudo &> /dev/null; then
+        echo -e "${GREEN}  ✓ Automatic elevation ready${NC}"
+        echo -e "${BLUE}  i Permission will be requested on first launch${NC}"
     else
         echo -e "${YELLOW}  ! Root access not configured${NC}"
-        echo -e "${YELLOW}  ! Install Magisk or KernelSU for root${NC}"
+        echo -e "${YELLOW}  ! Reinstall tsu before launching WiFiT${NC}"
     fi
 }
 
@@ -208,9 +225,9 @@ show_usage() {
     echo -e "  ${YELLOW}wifit${NC}  ${BLUE}(no sudo needed!)${NC}"
     echo ""
     echo -e "${GREEN}First time setup:${NC}"
-    echo -e "  1. Grant Termux root permission in Magisk/KernelSU"
-    echo -e "  2. Run: ${YELLOW}tsu${NC} (grant root when prompted)"
-    echo -e "  3. Then run: ${YELLOW}wifit${NC}"
+    echo -e "  1. Ensure Magisk or KernelSU is installed"
+    echo -e "  2. Run: ${YELLOW}wifit${NC}"
+    echo -e "  3. Approve the root permission prompt"
     echo ""
     echo -e "${GREEN}Features:${NC}"
     echo -e "  • Auto Attack - Automatically scan and attack WPS networks"

@@ -109,10 +109,10 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
    - [Magisk](https://github.com/topjohnwu/Magisk) (Recommended)
    - [KernelSU](https://kernelsu.org/) (Alternative)
 
-2. **Grant Termux Root Permission**
-   - Open Magisk/KernelSU app
-   - Find Termux in app list
-   - Grant superuser permission
+2. **Approve Termux When WiFiT Requests Root**
+   - Start WiFiT normally with `wifit`
+   - Approve the Magisk/KernelSU popup
+   - No manual `tsu` shell is required
 
 ### Dependencies
 
@@ -153,27 +153,20 @@ cd WiFiT
 # 4. Run installer
 bash install.sh
 
-# 5. Grant root permission when prompted
-# First time: run 'tsu' and grant superuser access
-
-# 6. Start WiFiT
+# 5. Start WiFiT and grant root permission when prompted
 wifit
 ```
 
 ### First Time Setup
 
 ```bash
-# After installation, grant Termux root access:
+# WiFiT elevates automatically through the command runner supplied by tsu:
 
-# 1. Run tsu for the first time
-tsu
-
-# 2. Grant permission in Magisk/KernelSU popup
-# (Check "Remember choice" for convenience)
-
-# 3. Exit and run WiFiT
-exit
+# 1. Start WiFiT
 wifit
+
+# 2. Grant permission in the Magisk/KernelSU popup
+# (Check "Remember choice" for convenience)
 ```
 
 ---
@@ -312,7 +305,7 @@ wifit
 
 # Or manually:
 pkg install root-repo tsu -y
-tsu  # Grant permission
+wifit  # Grant permission when prompted
 ```
 
 **2. "No WPS networks found"**
@@ -333,9 +326,8 @@ tsu  # Grant permission
 # Check if Magisk/KernelSU is installed
 # Open Magisk app → Check Termux permissions
 
-# Test root manually:
-tsu
-id  # Should show uid=0(root)
+# Test one-shot root access manually:
+sudo id  # Should show uid=0(root) and return to the normal shell
 ```
 
 **4. "Permission denied"**
