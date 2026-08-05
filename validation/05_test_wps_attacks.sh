@@ -38,29 +38,23 @@ fi
 
 # Authorization check
 echo ""
-echo -e "${RED}╔══════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${RED}║              ⚠️  LEGAL AUTHORIZATION REQUIRED  ⚠️              ║${NC}"
-echo -e "${RED}╠══════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${RED}║  You are about to perform live WPS attacks against:         ║${NC}"
-echo -e "${RED}║  BSSID: $TARGET_BSSID                            ║${NC}"
-echo -e "${RED}║                                                              ║${NC}"
-echo -e "${RED}║  This test will:                                            ║${NC}"
-echo -e "${RED}║  • Attempt Pixie Dust attack                                ║${NC}"
-echo -e "${RED}║  • Try limited PIN brute force (~10 PINs)                   ║${NC}"
-echo -e "${RED}║  • Test algorithm-generated PINs                            ║${NC}"
-echo -e "${RED}║  • Attempt empty/null PIN                                   ║${NC}"
-echo -e "${RED}║  • Test PBC (requires physical button press)                ║${NC}"
-echo -e "${RED}║                                                              ║${NC}"
-echo -e "${RED}║  ⚠️  ONLY PROCEED IF:                                       ║${NC}"
-echo -e "${RED}║  ✓ You OWN this network                                     ║${NC}"
-echo -e "${RED}║  ✓ You have WRITTEN permission                              ║${NC}"
-echo -e "${RED}║  ✓ This is an ISOLATED test network                        ║${NC}"
-echo -e "${RED}║                                                              ║${NC}"
-echo -e "${RED}║  Unauthorized access is ILLEGAL and may result in:          ║${NC}"
-echo -e "${RED}║  • Criminal prosecution                                     ║${NC}"
-echo -e "${RED}║  • Civil liability                                          ║${NC}"
-echo -e "${RED}║  • Device confiscation                                      ║${NC}"
-echo -e "${RED}╚══════════════════════════════════════════════════════════════╝${NC}"
+echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${YELLOW}║          📋 CONTROLLED TEST NETWORK CONFIRMATION 📋          ║${NC}"
+echo -e "${YELLOW}╠══════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${YELLOW}║  You are about to perform live WPS attacks against:         ║${NC}"
+echo -e "${YELLOW}║  BSSID: $TARGET_BSSID                            ║${NC}"
+echo -e "${YELLOW}║                                                              ║${NC}"
+echo -e "${YELLOW}║  This test will:                                            ║${NC}"
+echo -e "${YELLOW}║  • Attempt Pixie Dust attack                                ║${NC}"
+echo -e "${YELLOW}║  • Try limited PIN brute force (~10 PINs)                   ║${NC}"
+echo -e "${YELLOW}║  • Test algorithm-generated PINs                            ║${NC}"
+echo -e "${YELLOW}║  • Attempt empty/null PIN                                   ║${NC}"
+echo -e "${YELLOW}║  • Test PBC (requires physical button press)                ║${NC}"
+echo -e "${YELLOW}║                                                              ║${NC}"
+echo -e "${YELLOW}║  ✓ You must OWN this network                                ║${NC}"
+echo -e "${YELLOW}║  ✓ You must have WRITTEN permission                         ║${NC}"
+echo -e "${YELLOW}║  ✓ This must be an ISOLATED test network                   ║${NC}"
+echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 read -p "Type 'yes' to confirm you OWN this network and authorize this test: " CONFIRM
 
@@ -78,7 +72,7 @@ main() {
     log_info "Started at: $(date)"
     
     cd "$PROJECT_ROOT"
-    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+    export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
     
     # Check root access
     if [ "$EUID" -ne 0 ]; then
@@ -86,14 +80,14 @@ main() {
         exit 1
     fi
     
-    # Test 1: Pixie Dust attempt
-    log_info "Test 1: Pixie Dust attack (30s timeout)"
+    # Test 1: PIN generation
+    log_info "Test 1: PIN generation for target"
     python3 -c "
-from wifit_core import pin_generator
-from wifit_core.pin_generator import generate_pins
-pins = generate_pins('$TARGET_BSSID')
-print(f'Generated {len(pins)} PINs for target')
-print(f'First 3 PINs: {pins[:3]}')
+from wifit_core.pin_generator import get_likely_pins
+pins = get_likely_pins('$TARGET_BSSID')
+print(f'Generated {len(pins)} likely PINs for target')
+if pins:
+    print(f'First 3 PINs: {pins[:3]}')
 " >> "$PHASE_LOG" 2>&1
     
     if [ $? -eq 0 ]; then
@@ -122,13 +116,15 @@ assert empty_pin == '', 'Empty PIN should be empty string'
         ((TESTS_FAILED++))
     fi
     
-    # Test 3: Zero PIN (00000000 → 00000005 with checksum)
+    # Test 3: Zero PIN (special PIN 00000000 with checksum)
     log_info "Test 3: Zero PIN formatting"
     python3 -c "
-from wifit_core.pin_generator import format_pin
-zero_pin = format_pin(0)
+from wifit_core.pin_generator import wps_checksum
+# Zero PIN: 0000000 has checksum 0 -> 00000000
+checksum = wps_checksum(0)
+zero_pin = f'{0:07d}{checksum}'
 print(f'Zero PIN: {zero_pin}')
-assert zero_pin == '00000005', f'Expected 00000005, got {zero_pin}'
+assert zero_pin == '00000000', f'Expected 00000000, got {zero_pin}'
 " >> "$PHASE_LOG" 2>&1
     
     if [ $? -eq 0 ]; then
@@ -146,16 +142,18 @@ from wifit_core.wps_bruteforce import BruteforceSession
 import tempfile
 import os
 
-session_path = tempfile.mktemp(suffix='.json')
-session = BruteforceSession.create('$TARGET_BSSID', session_path)
-print(f'Session phase: {session.progress.phase}')
-print(f'First PIN: {session.progress.to_pin()}')
-assert session.progress.phase == 'first_half'
-assert session.progress.first_half == 0
+session_dir = tempfile.mkdtemp()
+session = BruteforceSession('$TARGET_BSSID', session_dir=session_dir)
+progress = session.start()
+print(f'Session phase: {progress.phase}')
+print(f'First PIN: {progress.to_pin()}')
+assert progress.phase == 'first_half'
+assert progress.first_half == 0
 
 # Cleanup
-if os.path.exists(session_path):
-    os.remove(session_path)
+session.delete()
+import shutil
+shutil.rmtree(session_dir)
 " >> "$PHASE_LOG" 2>&1
     
     if [ $? -eq 0 ]; then
@@ -166,24 +164,26 @@ if os.path.exists(session_path):
         ((TESTS_FAILED++))
     fi
     
-    # Test 5: Attack result structure
+    # Test 5: AttackResult structure
     log_info "Test 5: AttackResult structure validation"
     python3 -c "
 from wifit_core.models import AttackResult, AttackMethod, AttackOutcome
+from datetime import datetime, timezone
 
 result = AttackResult(
-    method=AttackMethod.PIN,
-    outcome=AttackOutcome.SUCCESS,
     bssid='$TARGET_BSSID',
     ssid='TestNetwork',
+    method=AttackMethod.PIN,
+    outcome=AttackOutcome.SUCCESS,
+    attempts=1,
+    finished_at=datetime.now(timezone.utc),
     wps_pin='12345670',
     network_key='test_password',
-    attempts=1,
 )
 
-assert result.successful
-assert result.pin == '12345670'
-assert result.psk == 'test_password'
+assert result.outcome == AttackOutcome.SUCCESS
+assert result.wps_pin == '12345670'
+assert result.network_key == 'test_password'
 print('AttackResult structure valid')
 " >> "$PHASE_LOG" 2>&1
     

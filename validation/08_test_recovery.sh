@@ -20,29 +20,32 @@ TESTS_FAILED=0
 main() {
     log_info "=== Phase 8: Recovery & Cleanup ==="
     cd "$PROJECT_ROOT"
-    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+    export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
     
     # Test session resume
     python3 -c "
 from wifit_core.wps_bruteforce import BruteforceSession
-import tempfile, os
+import tempfile, os, shutil
 
-session_path = tempfile.mktemp(suffix='.json')
+session_dir = tempfile.mkdtemp()
 bssid = 'AA:BB:CC:DD:EE:FF'
 
 # Create session
-session1 = BruteforceSession.create(bssid, session_path)
-pin1 = session1.progress.to_pin()
+session1 = BruteforceSession(bssid, session_dir=session_dir)
+progress1 = session1.start()
+pin1 = progress1.to_pin()
 session1.save()
 
 # Resume session
-session2 = BruteforceSession.load(session_path)
-pin2 = session2.progress.to_pin()
+session2 = BruteforceSession(bssid, session_dir=session_dir, session_id=session1.session_id)
+progress2 = session2.start()
+pin2 = progress2.to_pin()
 
 assert pin1 == pin2, f'Resume failed: {pin1} != {pin2}'
 print(f'✓ Session resume works: {pin1}')
 
-os.remove(session_path)
+session1.delete()
+shutil.rmtree(session_dir)
 " >> "$PHASE_LOG" 2>&1
     
     if [ $? -eq 0 ]; then

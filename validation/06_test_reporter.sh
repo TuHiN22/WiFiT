@@ -20,43 +20,46 @@ TESTS_FAILED=0
 main() {
     log_info "=== Phase 6: Reporter Validation ==="
     cd "$PROJECT_ROOT"
-    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+    export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
     
     # Test reporter module
     python3 -c "
 from wifit_core.reporter import ResultReporter
 from wifit_core.models import AttackResult, AttackMethod, AttackOutcome
+from datetime import datetime, timezone
 import tempfile, os
 
 # Create test result
 result = AttackResult(
-    method=AttackMethod.PIN,
-    outcome=AttackOutcome.SUCCESS,
     bssid='AA:BB:CC:DD:EE:FF',
     ssid='TestNet',
+    method=AttackMethod.PIN,
+    outcome=AttackOutcome.SUCCESS,
+    attempts=1,
+    finished_at=datetime.now(timezone.utc),
     wps_pin='12345670',
     network_key='TestPassword123',
 )
 
 # Test export
 temp_dir = tempfile.mkdtemp()
-reporter = ResultReporter(output_dir=temp_dir)
+reporter = ResultReporter()
 
 # TXT export
 txt_path = os.path.join(temp_dir, 'test.txt')
-reporter.save_text(result, txt_path)
+reporter.export(txt_path, attack_results=[result], report_format='txt')
 assert os.path.exists(txt_path), 'TXT file not created'
 print('✓ TXT export works')
 
 # CSV export
 csv_path = os.path.join(temp_dir, 'test.csv')
-reporter.save_csv([result], csv_path)
+reporter.export(csv_path, attack_results=[result], report_format='csv')
 assert os.path.exists(csv_path), 'CSV file not created'
 print('✓ CSV export works')
 
 # JSON export  
 json_path = os.path.join(temp_dir, 'test.json')
-reporter.save_json([result], json_path)
+reporter.export(json_path, attack_results=[result], report_format='json')
 assert os.path.exists(json_path), 'JSON file not created'
 print('✓ JSON export works')
 

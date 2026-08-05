@@ -176,8 +176,7 @@ def run_pixiewps(
     # Determine success (pin found or explicit success message)
     success = (
         pin is not None
-        or "WPS pin:  " in result.stdout
-        or result.returncode == 0
+        and result.returncode == 0
     )
     
     return PixiewpsResult(

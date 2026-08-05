@@ -219,18 +219,37 @@ class BruteforceSession:
         )
         try:
             os.fchmod(descriptor, 0o600)
+        except (OSError, AttributeError):
+            # Windows doesn't support fchmod
+            pass
+        
+        try:
             with os.fdopen(descriptor, "w", encoding="utf-8") as session_file:
+                descriptor = -1
                 json.dump(payload, session_file, indent=2, ensure_ascii=False)
                 session_file.write("\n")
                 session_file.flush()
                 os.fsync(session_file.fileno())
+            
+            # On Windows, remove target before replace if it exists
+            if os.name == "nt" and self.session_file.exists():
+                try:
+                    self.session_file.unlink()
+                except OSError:
+                    pass
+            
             os.replace(temp_path, self.session_file)
-            os.chmod(self.session_file, 0o600)
-        except Exception:
             try:
-                os.close(descriptor)
-            except OSError:
+                os.chmod(self.session_file, 0o600)
+            except (OSError, AttributeError):
+                # Windows permission model differs
                 pass
+        except Exception:
+            if descriptor >= 0:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
             try:
                 os.unlink(temp_path)
             except OSError:

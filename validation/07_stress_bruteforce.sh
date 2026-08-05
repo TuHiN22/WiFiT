@@ -17,7 +17,7 @@ log_error() { echo -e "${RED}[FAIL]${NC} $*" | tee -a "$PHASE_LOG"; }
 main() {
     log_info "=== Phase 7: Stress Testing ==="
     cd "$PROJECT_ROOT"
-    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+    export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
     
     log_info "Testing brute force PIN enumeration (1000 PINs)..."
     python3 -c "

@@ -60,15 +60,15 @@ jobs:
     
     - name: Run Ruff
       run: |
-        ruff check wifit_core/ || true
+        ruff check wifit_core/
     
     - name: Run mypy
       run: |
-        mypy wifit_core/ --ignore-missing-imports || true
+        mypy wifit_core/ --ignore-missing-imports
     
     - name: Run Bandit security scan
       run: |
-        bandit -r wifit_core/ -ll || true
+        bandit -r wifit_core/ -ll
   
   compile:
     name: Compilation Check
