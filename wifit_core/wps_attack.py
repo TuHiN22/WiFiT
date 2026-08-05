@@ -255,7 +255,8 @@ class WPASupplicantController:
         """
         bssid_normalized = normalize_bssid(bssid)
         progress = AttackProgress()
-        started_at = time.time()
+        wall_started_at = datetime.now(timezone.utc)
+        deadline = time.time() + timeout
         
         # Determine attack method
         if pin == "":
@@ -277,6 +278,7 @@ class WPASupplicantController:
                 method=method,
                 outcome=AttackOutcome.ERROR,
                 attempts=1,
+                started_at=wall_started_at,
                 finished_at=datetime.now(timezone.utc),
                 message=f"WPS_REG command rejected: {response}",
             )
@@ -284,7 +286,7 @@ class WPASupplicantController:
         progress.attempts = 1
         
         # Monitor wpa_supplicant events
-        while time.time() - started_at < timeout:
+        while time.time() < deadline:
             try:
                 events = self._receive_events(timeout=1.0)
                 for event in events:
@@ -299,6 +301,7 @@ class WPASupplicantController:
                             method=method,
                             outcome=AttackOutcome.SUCCESS,
                             attempts=progress.attempts,
+                            started_at=wall_started_at,
                             finished_at=datetime.now(timezone.utc),
                             wps_pin=pin if pin else "(empty)",
                             network_key=progress.wpa_psk,
@@ -314,6 +317,7 @@ class WPASupplicantController:
                                 method=method,
                                 outcome=AttackOutcome.FAILURE,
                                 attempts=progress.attempts,
+                                started_at=wall_started_at,
                                 finished_at=datetime.now(timezone.utc),
                                 message="PIN rejected (first half valid)",
                                 metadata={"first_half_valid": True},
@@ -325,6 +329,7 @@ class WPASupplicantController:
                                 method=method,
                                 outcome=AttackOutcome.FAILURE,
                                 attempts=progress.attempts,
+                                started_at=wall_started_at,
                                 finished_at=datetime.now(timezone.utc),
                                 message="PIN rejected",
                             )
@@ -337,6 +342,7 @@ class WPASupplicantController:
                             method=method,
                             outcome=AttackOutcome.ERROR,
                             attempts=progress.attempts,
+                            started_at=wall_started_at,
                             finished_at=datetime.now(timezone.utc),
                             message="WPS transaction failed",
                         )
@@ -352,6 +358,7 @@ class WPASupplicantController:
             method=method,
             outcome=AttackOutcome.TIMEOUT,
             attempts=progress.attempts,
+            started_at=wall_started_at,
             finished_at=datetime.now(timezone.utc),
             message=f"Attack exceeded {timeout}s timeout",
         )
@@ -370,7 +377,8 @@ class WPASupplicantController:
         """
         bssid_normalized = normalize_bssid(bssid)
         progress = AttackProgress()
-        started_at = time.time()
+        wall_started_at = datetime.now(timezone.utc)
+        deadline = time.time() + timeout
         
         # Send WPS_REG without PIN parameter (true null PIN)
         cmd = f"WPS_REG {bssid_normalized}"
@@ -383,6 +391,7 @@ class WPASupplicantController:
                 method=AttackMethod.NULL_PIN,
                 outcome=AttackOutcome.ERROR,
                 attempts=1,
+                started_at=wall_started_at,
                 finished_at=datetime.now(timezone.utc),
                 message=f"WPS_REG command rejected: {response}",
             )
@@ -390,7 +399,7 @@ class WPASupplicantController:
         progress.attempts = 1
         
         # Monitor wpa_supplicant events
-        while time.time() - started_at < timeout:
+        while time.time() < deadline:
             try:
                 events = self._receive_events(timeout=1.0)
                 for event in events:
@@ -404,6 +413,7 @@ class WPASupplicantController:
                             method=AttackMethod.NULL_PIN,
                             outcome=AttackOutcome.SUCCESS,
                             attempts=progress.attempts,
+                            started_at=wall_started_at,
                             finished_at=datetime.now(timezone.utc),
                             wps_pin="(null)",
                             network_key=progress.wpa_psk,
@@ -417,6 +427,7 @@ class WPASupplicantController:
                             method=AttackMethod.NULL_PIN,
                             outcome=AttackOutcome.FAILURE,
                             attempts=progress.attempts,
+                            started_at=wall_started_at,
                             finished_at=datetime.now(timezone.utc),
                             message="Null PIN rejected",
                         )
@@ -432,6 +443,7 @@ class WPASupplicantController:
             method=AttackMethod.NULL_PIN,
             outcome=AttackOutcome.TIMEOUT,
             attempts=progress.attempts,
+            started_at=wall_started_at,
             finished_at=datetime.now(timezone.utc),
             message=f"Attack exceeded {timeout}s timeout",
         )
@@ -452,24 +464,28 @@ class WPASupplicantController:
             AttackResult with outcome
         """
         progress = AttackProgress()
-        started_at = time.time()
+        wall_started_at = datetime.now(timezone.utc)
+        deadline = time.time() + timeout
         
         # Send PBC command
         if bssid:
             bssid_normalized = normalize_bssid(bssid)
             cmd = f"WPS_PBC {bssid_normalized}"
+            result_bssid = bssid_normalized
         else:
-            bssid_normalized = "BROADCAST"
+            # Broadcast mode - use None for result BSSID
             cmd = "WPS_PBC"
+            result_bssid = None
         
         response = self._send_command(cmd)
         if "OK" not in response:
             return AttackResult(
-                bssid=bssid_normalized,
+                bssid=result_bssid or "",
                 ssid="",
                 method=AttackMethod.PBC,
                 outcome=AttackOutcome.ERROR,
                 attempts=1,
+                started_at=wall_started_at,
                 finished_at=datetime.now(timezone.utc),
                 message=f"WPS_PBC command rejected: {response}",
             )
@@ -477,7 +493,7 @@ class WPASupplicantController:
         progress.attempts = 1
         
         # Monitor for PBC success
-        while time.time() - started_at < timeout:
+        while time.time() < deadline:
             try:
                 events = self._receive_events(timeout=2.0)
                 for event in events:
@@ -486,11 +502,12 @@ class WPASupplicantController:
                     if progress.status == "GOT_PSK":
                         self._send_command("WPS_CANCEL", expect_response=False)
                         return AttackResult(
-                            bssid=bssid_normalized,
+                            bssid=result_bssid or progress.essid or "",
                             ssid=progress.essid,
                             method=AttackMethod.PBC,
                             outcome=AttackOutcome.SUCCESS,
                             attempts=progress.attempts,
+                            started_at=wall_started_at,
                             finished_at=datetime.now(timezone.utc),
                             network_key=progress.wpa_psk,
                         )
@@ -498,11 +515,12 @@ class WPASupplicantController:
                     elif progress.status in ("WSC_NACK", "WPS_FAIL"):
                         self._send_command("WPS_CANCEL", expect_response=False)
                         return AttackResult(
-                            bssid=bssid_normalized,
+                            bssid=result_bssid or "",
                             ssid=progress.essid,
                             method=AttackMethod.PBC,
                             outcome=AttackOutcome.FAILURE,
                             attempts=progress.attempts,
+                            started_at=wall_started_at,
                             finished_at=datetime.now(timezone.utc),
                             message="PBC failed or rejected",
                         )
@@ -513,11 +531,12 @@ class WPASupplicantController:
         # Timeout (user didn't press button)
         self._send_command("WPS_CANCEL", expect_response=False)
         return AttackResult(
-            bssid=bssid_normalized,
+            bssid=result_bssid or "",
             ssid="",
             method=AttackMethod.PBC,
             outcome=AttackOutcome.TIMEOUT,
             attempts=progress.attempts,
+            started_at=wall_started_at,
             finished_at=datetime.now(timezone.utc),
             message=f"No PBC press detected within {timeout}s",
         )

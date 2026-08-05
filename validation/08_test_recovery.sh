@@ -23,7 +23,7 @@ main() {
     export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
     
     # Test session resume
-    python3 -c "
+    if python3 -c "
 from wifit_core.wps_bruteforce import BruteforceSession
 import tempfile, os, shutil
 
@@ -46,14 +46,12 @@ print(f'✓ Session resume works: {pin1}')
 
 session1.delete()
 shutil.rmtree(session_dir)
-" >> "$PHASE_LOG" 2>&1
-    
-    if [ $? -eq 0 ]; then
+" >> "$PHASE_LOG" 2>&1; then
         log_success "Session resume validated"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         log_error "Session resume failed"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     log_info "Tests Passed: $TESTS_PASSED | Failed: $TESTS_FAILED"

@@ -82,62 +82,56 @@ main() {
     
     # Test 1: PIN generation
     log_info "Test 1: PIN generation for target"
-    python3 -c "
+    if python3 -c "
 from wifit_core.pin_generator import get_likely_pins
 pins = get_likely_pins('$TARGET_BSSID')
 print(f'Generated {len(pins)} likely PINs for target')
 if pins:
     print(f'First 3 PINs: {pins[:3]}')
-" >> "$PHASE_LOG" 2>&1
-    
-    if [ $? -eq 0 ]; then
+" >> "$PHASE_LOG" 2>&1; then
         log_success "PIN generation works"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         log_error "PIN generation failed"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     # Test 2: Empty PIN test
     log_info "Test 2: Empty PIN handling"
-    python3 -c "
+    if python3 -c "
 from wifit_core.pin_generator import PINGenerator
 gen = PINGenerator()
 empty_pin = gen.generate('pinEmpty', '$TARGET_BSSID')
-print(f'Empty PIN: \"{empty_pin}\" (should be empty string)')
+print(f'Empty PIN: \\\"{empty_pin}\\\" (should be empty string)')
 assert empty_pin == '', 'Empty PIN should be empty string'
-" >> "$PHASE_LOG" 2>&1
-    
-    if [ $? -eq 0 ]; then
+" >> "$PHASE_LOG" 2>&1; then
         log_success "Empty PIN generation correct"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         log_error "Empty PIN test failed"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     # Test 3: Zero PIN (special PIN 00000000 with checksum)
     log_info "Test 3: Zero PIN formatting"
-    python3 -c "
+    if python3 -c "
 from wifit_core.pin_generator import wps_checksum
 # Zero PIN: 0000000 has checksum 0 -> 00000000
 checksum = wps_checksum(0)
 zero_pin = f'{0:07d}{checksum}'
 print(f'Zero PIN: {zero_pin}')
 assert zero_pin == '00000000', f'Expected 00000000, got {zero_pin}'
-" >> "$PHASE_LOG" 2>&1
-    
-    if [ $? -eq 0 ]; then
+" >> "$PHASE_LOG" 2>&1; then
         log_success "Zero PIN formatting correct"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         log_error "Zero PIN test failed"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     # Test 4: Brute force session creation
     log_info "Test 4: Brute force session initialization"
-    python3 -c "
+    if python3 -c "
 from wifit_core.wps_bruteforce import BruteforceSession
 import tempfile
 import os
@@ -154,21 +148,22 @@ assert progress.first_half == 0
 session.delete()
 import shutil
 shutil.rmtree(session_dir)
-" >> "$PHASE_LOG" 2>&1
-    
-    if [ $? -eq 0 ]; then
+" >> "$PHASE_LOG" 2>&1; then
         log_success "Brute force session creation works"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         log_error "Brute force session test failed"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     # Test 5: AttackResult structure
     log_info "Test 5: AttackResult structure validation"
-    python3 -c "
+    if python3 -c "
 from wifit_core.models import AttackResult, AttackMethod, AttackOutcome
 from datetime import datetime, timezone
+
+# Capture timestamp for both start and finish
+now = datetime.now(timezone.utc)
 
 result = AttackResult(
     bssid='$TARGET_BSSID',
@@ -176,7 +171,8 @@ result = AttackResult(
     method=AttackMethod.PIN,
     outcome=AttackOutcome.SUCCESS,
     attempts=1,
-    finished_at=datetime.now(timezone.utc),
+    started_at=now,
+    finished_at=now,
     wps_pin='12345670',
     network_key='test_password',
 )
@@ -185,30 +181,26 @@ assert result.outcome == AttackOutcome.SUCCESS
 assert result.wps_pin == '12345670'
 assert result.network_key == 'test_password'
 print('AttackResult structure valid')
-" >> "$PHASE_LOG" 2>&1
-    
-    if [ $? -eq 0 ]; then
+" >> "$PHASE_LOG" 2>&1; then
         log_success "AttackResult structure valid"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         log_error "AttackResult validation failed"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     # Test 6: WPS modules are importable
     log_info "Test 6: WPS attack modules import"
-    python3 -c "
+    if python3 -c "
 from wifit_core import wps_attack, pixie_dust
 print('wps_attack module imported')
 print('pixie_dust module imported')
-" >> "$PHASE_LOG" 2>&1
-    
-    if [ $? -eq 0 ]; then
+" >> "$PHASE_LOG" 2>&1; then
         log_success "WPS attack modules import successfully"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         log_error "WPS module import failed"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     # Note: Actual live attacks require hardware and are done in full validation

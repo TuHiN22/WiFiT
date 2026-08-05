@@ -33,11 +33,11 @@ run_test() {
     log_info "Running: $test_name"
     if eval "$test_cmd" >> "$PHASE_LOG" 2>&1; then
         log_success "$test_name"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
         return 0
     else
         log_error "$test_name"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
         return 1
     fi
 }
@@ -90,12 +90,13 @@ import os
 snap = ProcessSnapshot(
     pid=os.getpid(),
     name=\"test\",
-    cmdline=[\"python3\", \"test.py\"],
-    started_at=1234567890.0
+    executable=\"/usr/bin/python3\",
+    argv=(\"python3\", \"test.py\"),
+    start_time_ticks=1234567890
 )
 assert snap.pid == os.getpid()
 assert snap.name == \"test\"
-assert len(snap.cmdline) == 2
+assert len(snap.argv) == 2
 print(\"Snapshot validation passed\")
 '"
     
@@ -113,19 +114,29 @@ print(\"Idempotent restore confirmed\")
     # Test 6: Journal permissions
     log_info "Test 6: Journal file has secure permissions"
     TEST_JOURNAL=$(mktemp)
-    if [ -f "$TEST_JOURNAL" ]; then
-        PERMS=$(stat -c '%a' "$TEST_JOURNAL" 2>/dev/null || stat -f '%A' "$TEST_JOURNAL" 2>/dev/null || echo "000")
-        if [ "$PERMS" = "600" ]; then
-            log_success "Journal has mode 0600"
-            ((TESTS_PASSED++))
+    if python3 -c "
+from wifit_core.process_manager import ProcessManager
+pm = ProcessManager(journal_path='$TEST_JOURNAL')
+with pm:
+    pass  # Context manager will create journal
+" 2>/dev/null; then
+        if [ -f "$TEST_JOURNAL" ]; then
+            PERMS=$(stat -c '%a' "$TEST_JOURNAL" 2>/dev/null || stat -f '%A' "$TEST_JOURNAL" 2>/dev/null || echo "000")
+            if [ "$PERMS" = "600" ]; then
+                log_success "Journal has mode 0600"
+                TESTS_PASSED=$((TESTS_PASSED + 1))
+            else
+                log_warning "Journal has mode $PERMS (expected 0600)"
+                TESTS_FAILED=$((TESTS_FAILED + 1))
+            fi
+            rm -f "$TEST_JOURNAL"
         else
-            log_warning "Journal has mode $PERMS (expected 0600)"
-            ((TESTS_FAILED++))
+            log_warning "Journal file not created"
+            TESTS_FAILED=$((TESTS_FAILED + 1))
         fi
-        rm -f "$TEST_JOURNAL"
     else
-        log_warning "Journal file not created"
-        ((TESTS_FAILED++))
+        log_error "ProcessManager context failed"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     # Test 7: Cleanup verification

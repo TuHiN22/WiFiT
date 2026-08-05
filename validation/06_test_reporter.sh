@@ -23,20 +23,23 @@ main() {
     export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
     
     # Test reporter module
-    python3 -c "
+    if python3 -c "
 from wifit_core.reporter import ResultReporter
 from wifit_core.models import AttackResult, AttackMethod, AttackOutcome
 from datetime import datetime, timezone
 import tempfile, os
 
-# Create test result
+# Create test result with proper timestamps
+now = datetime.now(timezone.utc)
+
 result = AttackResult(
     bssid='AA:BB:CC:DD:EE:FF',
     ssid='TestNet',
     method=AttackMethod.PIN,
     outcome=AttackOutcome.SUCCESS,
     attempts=1,
-    finished_at=datetime.now(timezone.utc),
+    started_at=now,
+    finished_at=now,
     wps_pin='12345670',
     network_key='TestPassword123',
 )
@@ -67,14 +70,12 @@ print('✓ JSON export works')
 import shutil
 shutil.rmtree(temp_dir)
 print('✓ All exports working')
-" >> "$PHASE_LOG" 2>&1
-    
-    if [ $? -eq 0 ]; then
+" >> "$PHASE_LOG" 2>&1; then
         log_success "Reporter validation passed"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         log_error "Reporter validation failed"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
     log_info "Tests Passed: $TESTS_PASSED | Failed: $TESTS_FAILED"
