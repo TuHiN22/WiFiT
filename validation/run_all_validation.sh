@@ -127,6 +127,99 @@ validate_bssid() {
 TEST_BSSID=$(validate_bssid "$TEST_BSSID")
 log_info "Normalized BSSID: $TEST_BSSID"
 
+# ============================================================================
+# Git Provenance Collection Function
+# ============================================================================
+# Use command-scoped safe.directory (read-only, no repository mutation)
+# Capture provenance at start AND end to detect any changes during validation
+
+collect_git_provenance() {
+    local phase="$1"  # "start" or "end"
+
+    # Full 40-character commit SHA (command-scoped safe.directory)
+    if ! GIT_COMMIT_FULL=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null); then
+        log_error "BLOCKER: Cannot determine commit SHA at validation $phase."
+        log_error "Git provenance is mandatory. This validation cannot be tied to a reproducible commit."
+        exit 2
+    fi
+
+    # Short SHA for display
+    GIT_COMMIT_SHORT=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+    # Branch or detached HEAD
+    GIT_BRANCH=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    if [[ "$GIT_BRANCH" == "HEAD" ]]; then
+        GIT_BRANCH="detached"
+    fi
+
+    # Exact tag if present
+    GIT_TAG=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" describe --tags --exact-match 2>/dev/null || echo "")
+
+    # Complete dirty status (working tree + index + untracked)
+    GIT_STATUS_PORCELAIN=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" status --porcelain 2>/dev/null || echo "")
+    if [[ -z "$GIT_STATUS_PORCELAIN" ]]; then
+        GIT_CLEAN="true"
+        GIT_DIRTY=""
+    else
+        GIT_CLEAN="false"
+        GIT_DIRTY="-dirty"
+    fi
+
+    # Export for comparison between start/end
+    if [[ "$phase" == "start" ]]; then
+        export GIT_COMMIT_FULL_START="$GIT_COMMIT_FULL"
+        export GIT_CLEAN_START="$GIT_CLEAN"
+        export GIT_STATUS_START="$GIT_STATUS_PORCELAIN"
+
+        log_info "Git Provenance (validation start):"
+        log_info "  Commit (full): $GIT_COMMIT_FULL"
+        log_info "  Commit (short): $GIT_COMMIT_SHORT"
+        log_info "  Branch: $GIT_BRANCH"
+        log_info "  Tag: ${GIT_TAG:-none}"
+        log_info "  Clean: $GIT_CLEAN"
+
+        # Fail immediately if worktree is dirty at start
+        if [[ "$GIT_CLEAN" != "true" ]]; then
+            log_error "BLOCKER: Worktree is dirty at validation start."
+            log_error "Validation requires a clean checkout of an exact commit/tag."
+            log_error "Dirty files:"
+            echo "$GIT_STATUS_PORCELAIN" | tee -a "$MASTER_LOG"
+            exit 2
+        fi
+    else
+        # Verify provenance hasn't changed during validation
+        if [[ "$GIT_COMMIT_FULL" != "$GIT_COMMIT_FULL_START" ]]; then
+            log_error "BLOCKER: Git commit SHA changed during validation!"
+            log_error "  Start: $GIT_COMMIT_FULL_START"
+            log_error "  End:   $GIT_COMMIT_FULL"
+            log_error "Validation results are invalid - tested commit is unknown."
+            exit 2
+        fi
+
+        if [[ "$GIT_CLEAN" != "$GIT_CLEAN_START" ]]; then
+            log_error "BLOCKER: Worktree state changed during validation!"
+            log_error "  Start: clean=$GIT_CLEAN_START"
+            log_error "  End:   clean=$GIT_CLEAN"
+            if [[ "$GIT_CLEAN" == "false" ]]; then
+                log_error "Dirty files at end:"
+                echo "$GIT_STATUS_PORCELAIN" | tee -a "$MASTER_LOG"
+            fi
+            log_error "Validation results are invalid - tested code is uncertain."
+            exit 2
+        fi
+
+        log_info "Git Provenance (validation end):"
+        log_info "  Commit: $GIT_COMMIT_FULL (unchanged ✓)"
+        log_info "  Worktree: clean (unchanged ✓)"
+    fi
+}
+
+# Get dynamic version
+WIFIT_VERSION=$(python3 -c "from wifit_core import __version__; print(__version__)" 2>/dev/null || echo "unknown")
+
+# Collect provenance at START (before Phase 1)
+collect_git_provenance "start"
+
 # Test results tracking
 declare -A PHASE_RESULTS
 TOTAL_PHASES=8
@@ -238,99 +331,6 @@ log_info ""
 log_info "Passed Phases: $PASSED_PHASES / $TOTAL_PHASES"
 log_info "Validation completed at $(date)"
 log_info "Full log saved to: $MASTER_LOG"
-
-# ============================================================================
-# Git Provenance Collection - START
-# ============================================================================
-# Use command-scoped safe.directory (read-only, no repository mutation)
-# Capture provenance at start AND end to detect any changes during validation
-
-collect_git_provenance() {
-    local phase="$1"  # "start" or "end"
-
-    # Full 40-character commit SHA (command-scoped safe.directory)
-    if ! GIT_COMMIT_FULL=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null); then
-        log_error "BLOCKER: Cannot determine commit SHA at validation $phase."
-        log_error "Git provenance is mandatory. This validation cannot be tied to a reproducible commit."
-        exit 2
-    fi
-
-    # Short SHA for display
-    GIT_COMMIT_SHORT=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-
-    # Branch or detached HEAD
-    GIT_BRANCH=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-    if [[ "$GIT_BRANCH" == "HEAD" ]]; then
-        GIT_BRANCH="detached"
-    fi
-
-    # Exact tag if present
-    GIT_TAG=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" describe --tags --exact-match 2>/dev/null || echo "")
-
-    # Complete dirty status (working tree + index + untracked)
-    GIT_STATUS_PORCELAIN=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" status --porcelain 2>/dev/null || echo "")
-    if [[ -z "$GIT_STATUS_PORCELAIN" ]]; then
-        GIT_CLEAN="true"
-        GIT_DIRTY=""
-    else
-        GIT_CLEAN="false"
-        GIT_DIRTY="-dirty"
-    fi
-
-    # Export for comparison between start/end
-    if [[ "$phase" == "start" ]]; then
-        export GIT_COMMIT_FULL_START="$GIT_COMMIT_FULL"
-        export GIT_CLEAN_START="$GIT_CLEAN"
-        export GIT_STATUS_START="$GIT_STATUS_PORCELAIN"
-
-        log_info "Git Provenance (validation start):"
-        log_info "  Commit (full): $GIT_COMMIT_FULL"
-        log_info "  Commit (short): $GIT_COMMIT_SHORT"
-        log_info "  Branch: $GIT_BRANCH"
-        log_info "  Tag: ${GIT_TAG:-none}"
-        log_info "  Clean: $GIT_CLEAN"
-
-        # Fail immediately if worktree is dirty at start
-        if [[ "$GIT_CLEAN" != "true" ]]; then
-            log_error "BLOCKER: Worktree is dirty at validation start."
-            log_error "Validation requires a clean checkout of an exact commit/tag."
-            log_error "Dirty files:"
-            echo "$GIT_STATUS_PORCELAIN" | tee -a "$MASTER_LOG"
-            exit 2
-        fi
-    else
-        # Verify provenance hasn't changed during validation
-        if [[ "$GIT_COMMIT_FULL" != "$GIT_COMMIT_FULL_START" ]]; then
-            log_error "BLOCKER: Git commit SHA changed during validation!"
-            log_error "  Start: $GIT_COMMIT_FULL_START"
-            log_error "  End:   $GIT_COMMIT_FULL"
-            log_error "Validation results are invalid - tested commit is unknown."
-            exit 2
-        fi
-
-        if [[ "$GIT_CLEAN" != "$GIT_CLEAN_START" ]]; then
-            log_error "BLOCKER: Worktree state changed during validation!"
-            log_error "  Start: clean=$GIT_CLEAN_START"
-            log_error "  End:   clean=$GIT_CLEAN"
-            if [[ "$GIT_CLEAN" == "false" ]]; then
-                log_error "Dirty files at end:"
-                echo "$GIT_STATUS_PORCELAIN" | tee -a "$MASTER_LOG"
-            fi
-            log_error "Validation results are invalid - tested code is uncertain."
-            exit 2
-        fi
-
-        log_info "Git Provenance (validation end):"
-        log_info "  Commit: $GIT_COMMIT_FULL (unchanged ✓)"
-        log_info "  Worktree: clean (unchanged ✓)"
-    fi
-}
-
-# Get dynamic version
-WIFIT_VERSION=$(python3 -c "from wifit_core import __version__; print(__version__)" 2>/dev/null || echo "unknown")
-
-# Collect provenance at START (before Phase 1)
-collect_git_provenance "start"
 
 # Compute overall status (must pass ALL 8 phases)
 if [[ $PASSED_PHASES -eq $TOTAL_PHASES ]]; then
