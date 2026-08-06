@@ -299,7 +299,8 @@ class TestControllerPINAttack:
         ctrl = WPASupplicantController("wlan0", mock_runner)
 
         startup_responses = [b"PONG\n", b"OK\n", b"OK\n"]
-        event_responses = [b"WPS M5 sent\n", b"WSC_NACK\n"]
+        # Use actual wpa_supplicant event format: WPS-M2D or WPS-M5D etc
+        event_responses = [b"WPS-M5D\n", b"WSC_NACK\n"]
 
         with patch("tempfile.mkdtemp", return_value=str(tmp_path)), patch(
             "time.sleep"
@@ -317,6 +318,7 @@ class TestControllerPINAttack:
             assert result.outcome == AttackOutcome.FAILURE
             assert result.method == AttackMethod.PIN
             assert result.metadata.get("first_half_valid") is True
+            assert "first half valid" in result.message
 
     def test_pin_nack_first_half_invalid(self, mock_runner, tmp_path):
         """Test PIN rejection with first half invalid."""
@@ -326,7 +328,8 @@ class TestControllerPINAttack:
         ctrl = WPASupplicantController("wlan0", mock_runner)
 
         startup_responses = [b"PONG\n", b"OK\n", b"OK\n"]
-        event_responses = [b"WPS M3 sent\n", b"WSC_NACK\n"]
+        # M3 or below means first half invalid
+        event_responses = [b"WPS-M3D\n", b"WSC_NACK\n"]
 
         with patch("tempfile.mkdtemp", return_value=str(tmp_path)), patch(
             "time.sleep"
@@ -344,6 +347,7 @@ class TestControllerPINAttack:
             assert result.outcome == AttackOutcome.FAILURE
             assert result.method == AttackMethod.PIN
             assert "first_half_valid" not in result.metadata
+            assert "first half valid" not in result.message
 
     def test_pin_wps_fail(self, mock_runner, tmp_path):
         """Test PIN attack with WPS_FAIL."""
@@ -537,7 +541,8 @@ class TestControllerPBC:
 
             assert result.outcome == AttackOutcome.SUCCESS
             assert result.method == AttackMethod.PBC
-            assert result.bssid == "aa:bb:cc:dd:ee:ff"
+            # normalize_bssid uppercases
+            assert result.bssid == "AA:BB:CC:DD:EE:FF"
 
     def test_pbc_broadcast_success(self, mock_runner, tmp_path):
         """Test successful broadcast PBC."""
