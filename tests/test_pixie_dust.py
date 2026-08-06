@@ -14,7 +14,7 @@ def test_pixiewps_parameters_validation():
         authkey="E" * 64,
         e_nonce="F" * 32,
     )
-    
+
     errors = params.validate()
     assert len(errors) == 0, f"Valid params should have no errors, got: {errors}"
 
@@ -29,7 +29,7 @@ def test_pixiewps_parameters_validation_empty():
         authkey="",
         e_nonce="",
     )
-    
+
     errors = params.validate()
     assert len(errors) == 6  # All 6 fields are empty
 
@@ -44,7 +44,7 @@ def test_pixiewps_parameters_validation_wrong_length():
         authkey="E" * 32,  # Should be 64
         e_nonce="F" * 16,  # Should be 32
     )
-    
+
     errors = params.validate()
     assert len(errors) == 6  # All fields have wrong length
 
@@ -59,7 +59,7 @@ def test_pixiewps_parameters_validation_non_hex():
         authkey="E" * 64,
         e_nonce="F" * 32,
     )
-    
+
     errors = params.validate()
     assert any("non-hex" in err for err in errors)
 
@@ -73,7 +73,7 @@ def test_pixiewps_result_success():
         stdout="WPS pin:  12345670",
         stderr="",
     )
-    
+
     assert result.success
     assert not result.failed
     assert result.pin == "12345670"
@@ -89,7 +89,7 @@ def test_pixiewps_result_failure():
         stderr="",
         error_message="No PIN recovered",
     )
-    
+
     assert not result.success
     assert result.failed
     assert result.pin is None

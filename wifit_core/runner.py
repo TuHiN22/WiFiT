@@ -7,14 +7,13 @@ sequence, which keeps quoting decisions at the operating-system boundary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
 import os
 import signal
 import subprocess
 import time
-from typing import Mapping, Sequence
-
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 Arg = str | os.PathLike[str]
 
@@ -74,9 +73,7 @@ class CommandTimeoutError(CommandError):
         stdout: str,
         stderr: str,
     ) -> None:
-        super().__init__(
-            f"command {argv[0]!r} exceeded its {timeout:g}s timeout", argv
-        )
+        super().__init__(f"command {argv[0]!r} exceeded its {timeout:g}s timeout", argv)
         self.timeout = timeout
         self.stdout = stdout
         self.stderr = stderr
@@ -87,8 +84,7 @@ class CommandExecutionError(CommandError):
 
     def __init__(self, result: CommandResult) -> None:
         super().__init__(
-            f"command {result.argv[0]!r} exited with status "
-            f"{result.returncode}",
+            f"command {result.argv[0]!r} exited with status {result.returncode}",
             result.argv,
         )
         self.result = result
@@ -110,9 +106,7 @@ class CommandRunner:
         terminate_grace: float = 0.5,
         environment: Mapping[str, str] | None = None,
     ) -> None:
-        self.default_timeout = self._validate_timeout(
-            default_timeout, name="default_timeout"
-        )
+        self.default_timeout = self._validate_timeout(default_timeout, name="default_timeout")
         self.terminate_grace = self._validate_timeout(
             terminate_grace, name="terminate_grace", allow_zero=True
         )
@@ -173,14 +167,10 @@ class CommandRunner:
             raise CommandLaunchError(normalised, error) from error
 
         try:
-            stdout, stderr = process.communicate(
-                input=input_text, timeout=deadline
-            )
+            stdout, stderr = process.communicate(input=input_text, timeout=deadline)
         except subprocess.TimeoutExpired:
             stdout, stderr = self._stop_timed_out_process(process)
-            raise CommandTimeoutError(
-                normalised, deadline, stdout or "", stderr or ""
-            ) from None
+            raise CommandTimeoutError(normalised, deadline, stdout or "", stderr or "") from None
 
         result = CommandResult(
             argv=normalised,
@@ -213,9 +203,7 @@ class CommandRunner:
         return tuple(values)
 
     @staticmethod
-    def _validate_timeout(
-        value: float, *, name: str, allow_zero: bool = False
-    ) -> float:
+    def _validate_timeout(value: float, *, name: str, allow_zero: bool = False) -> float:
         if isinstance(value, bool):
             raise TypeError(f"{name} must be a finite number")
         timeout = float(value)
@@ -225,9 +213,7 @@ class CommandRunner:
             raise ValueError(f"{name} must be a finite {qualifier} number")
         return timeout
 
-    def _stop_timed_out_process(
-        self, process: subprocess.Popen[str]
-    ) -> tuple[str, str]:
+    def _stop_timed_out_process(self, process: subprocess.Popen[str]) -> tuple[str, str]:
         self._signal_process_group(process, force=False)
         try:
             return process.communicate(timeout=self.terminate_grace)
@@ -242,16 +228,12 @@ class CommandRunner:
                 return process.communicate()
 
     @staticmethod
-    def _signal_process_group(
-        process: subprocess.Popen[str], *, force: bool
-    ) -> None:
+    def _signal_process_group(process: subprocess.Popen[str], *, force: bool) -> None:
         if process.poll() is not None:
             return
         try:
             if os.name == "posix":
-                os.killpg(
-                    process.pid, signal.SIGKILL if force else signal.SIGTERM
-                )
+                os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
             elif force:
                 process.kill()
             else:

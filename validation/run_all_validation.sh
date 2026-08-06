@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# WiFiT v3.0.0-rc.1 Master Hardware Validation Script
+# WiFiT Master Hardware Validation Script
 # Runs complete validation suite and generates comprehensive report
 #
 # Usage: sudo bash validation/run_all_validation.sh <TEST_AP_BSSID>
@@ -44,9 +44,10 @@ log_error() {
 
 # Banner
 show_banner() {
-    cat << 'EOF' | tee -a "$MASTER_LOG"
+    local wifit_version=$(python3 -c "from wifit_core import __version__; print(__version__)" 2>/dev/null || echo "unknown")
+    cat << EOF | tee -a "$MASTER_LOG"
 ╔══════════════════════════════════════════════════════════════╗
-║        WiFiT v3.0.0-rc.1 Hardware Validation Suite         ║
+║        WiFiT $wifit_version Hardware Validation Suite       ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
 }
@@ -219,39 +220,56 @@ log_info "Passed Phases: $PASSED_PHASES / $TOTAL_PHASES"
 log_info "Validation completed at $(date)"
 log_info "Full log saved to: $MASTER_LOG"
 
-# Get dynamic version from wifit_core
+# Get dynamic version and Git information
 WIFIT_VERSION=$(python3 -c "from wifit_core import __version__; print(__version__)" 2>/dev/null || echo "unknown")
+GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_DIRTY=$(git diff --quiet 2>/dev/null || echo "-dirty")
 
-# Generate JSON summary
+# Compute overall status (must pass ALL 8 phases)
+if [[ $PASSED_PHASES -eq $TOTAL_PHASES ]]; then
+    OVERALL_STATUS="PASS"
+else
+    OVERALL_STATUS="FAIL"
+fi
+
+# Generate JSON summary using Python for proper escaping
 SUMMARY_JSON="$LOGS_DIR/validation_summary_$TIMESTAMP.json"
-cat > "$SUMMARY_JSON" << EOF
-{
-  "validation_run": {
-    "timestamp": "$TIMESTAMP",
-    "target_bssid": "$TEST_BSSID",
-    "wifit_version": "$WIFIT_VERSION",
-    "branch": "agent/wifit-v3"
-  },
-  "phases": {
-EOF
+python3 << PYEOF > "$SUMMARY_JSON"
+import json
+import sys
 
-for phase in {1..8}; do
+phases = {}
+for i in range(1, 9):
+    result = "${PHASE_RESULTS[" + str(i) + "]:-UNKNOWN}"
+    phases[f"phase_{i}"] = result
+
+data = {
+    "validation_run": {
+        "timestamp": "$TIMESTAMP",
+        "target_bssid": "$TEST_BSSID",
+        "wifit_version": "$WIFIT_VERSION",
+        "branch": "$GIT_BRANCH",
+        "commit": "$GIT_COMMIT$GIT_DIRTY"
+    },
+    "phases": {
+$(for phase in {1..8}; do
     result="${PHASE_RESULTS[$phase]:-UNKNOWN}"
-    echo "    \"phase_$phase\": \"$result\"" >> "$SUMMARY_JSON"
+    echo "        \"phase_$phase\": \"$result\""
     if [[ $phase -lt 8 ]]; then
-        echo "," >> "$SUMMARY_JSON"
+        echo ","
     fi
-done
-
-cat >> "$SUMMARY_JSON" << EOF
-  },
-  "summary": {
-    "total_phases": $TOTAL_PHASES,
-    "passed": $PASSED_PHASES,
-    "overall_status": "$([ $PASSED_PHASES -ge 6 ] && echo "PASS" || echo "FAIL")"
-  }
+done)
+    },
+    "summary": {
+        "total_phases": $TOTAL_PHASES,
+        "passed": $PASSED_PHASES,
+        "overall_status": "$OVERALL_STATUS"
+    }
 }
-EOF
+
+print(json.dumps(data, indent=2))
+PYEOF
 
 log_info "Summary JSON saved to: $SUMMARY_JSON"
 
@@ -269,8 +287,8 @@ else
     exit 1
 fi
 
-# Final status - require ALL 8 phases for stable release
-if [[ $PASSED_PHASES -eq 8 ]]; then
+# Final status - use computed OVERALL_STATUS
+if [[ "$OVERALL_STATUS" == "PASS" ]]; then
     log_success ""
     log_success "✓ VALIDATION PASSED"
     log_success "WiFiT is ready for stable release - all 8 phases passed"

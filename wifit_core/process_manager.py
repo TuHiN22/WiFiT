@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
 import signal
 import subprocess
 import tempfile
 import time
-from typing import Callable, Iterable, Sequence
-
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 
 DEFAULT_INTERFERERS = frozenset(
     {
@@ -223,9 +222,7 @@ class ProcessManager:
                 restored.append(snapshot)
             self._write_journal()
 
-        self._active = any(
-            item.terminated and not item.restored for item in self._managed
-        )
+        self._active = any(item.terminated and not item.restored for item in self._managed)
         self._write_journal()
         return tuple(restored)
 
@@ -308,9 +305,7 @@ class ProcessManager:
             if not argv:
                 continue
             try:
-                name = (entry / "comm").read_text(
-                    encoding="utf-8", errors="replace"
-                ).strip()
+                name = (entry / "comm").read_text(encoding="utf-8", errors="replace").strip()
             except OSError:
                 name = Path(argv[0]).name
 
@@ -362,10 +357,7 @@ class ProcessManager:
 
     def _equivalent_process_running(self, original: ProcessSnapshot) -> bool:
         for candidate in self.discover():
-            if (
-                candidate.restore_argv == original.restore_argv
-                and self._process_alive(candidate)
-            ):
+            if candidate.restore_argv == original.restore_argv and self._process_alive(candidate):
                 return True
         return False
 
@@ -518,16 +510,8 @@ class ProcessManager:
                 name=str(snapshot_data["name"]),
                 executable=str(snapshot_data["executable"]),
                 argv=tuple(argv),
-                cwd=(
-                    str(snapshot_data["cwd"])
-                    if snapshot_data.get("cwd") is not None
-                    else None
-                ),
-                uid=(
-                    int(snapshot_data["uid"])
-                    if snapshot_data.get("uid") is not None
-                    else None
-                ),
+                cwd=(str(snapshot_data["cwd"]) if snapshot_data.get("cwd") is not None else None),
+                uid=(int(snapshot_data["uid"]) if snapshot_data.get("uid") is not None else None),
                 start_time_ticks=(
                     int(snapshot_data["start_time_ticks"])
                     if snapshot_data.get("start_time_ticks") is not None

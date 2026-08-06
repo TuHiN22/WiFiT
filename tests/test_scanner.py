@@ -55,9 +55,7 @@ class IwParserTests(unittest.TestCase):
         self.assertTrue(transition.wpa3)
         self.assertTrue(transition.wpa3_transition)
         self.assertEqual(transition.wps_version, WPSVersion.VERSION_2)
-        self.assertEqual(
-            transition.wps_version_evidence, WPSVersionEvidence.CONFIRMED
-        )
+        self.assertEqual(transition.wps_version_evidence, WPSVersionEvidence.CONFIRMED)
         self.assertFalse(transition.wps_locked)
         self.assertEqual(transition.wsc_manufacturer, "Acme Corp")
         self.assertEqual(transition.wsc_model_name, "Router Pro")
@@ -69,9 +67,7 @@ class IwParserTests(unittest.TestCase):
         self.assertTrue(sae_only.wpa3)
         self.assertFalse(sae_only.wpa3_transition)
         self.assertEqual(sae_only.wps_version, WPSVersion.VERSION_1)
-        self.assertEqual(
-            sae_only.wps_version_evidence, WPSVersionEvidence.INFERRED
-        )
+        self.assertEqual(sae_only.wps_version_evidence, WPSVersionEvidence.INFERRED)
         self.assertTrue(sae_only.wps_locked)
         self.assertEqual(sae_only.channel, 36)
 
@@ -96,9 +92,7 @@ BSS 00:11:22:33:44:55 (on wlan0)
         access_point = parse_iw_scan(output)[0]
 
         self.assertEqual(access_point.wps_version, WPSVersion.VERSION_1)
-        self.assertEqual(
-            access_point.wps_version_evidence, WPSVersionEvidence.CONFIRMED
-        )
+        self.assertEqual(access_point.wps_version_evidence, WPSVersionEvidence.CONFIRMED)
         self.assertFalse(access_point.wps_locked)
 
 
@@ -135,9 +129,7 @@ class IwScannerRetryTests(unittest.TestCase):
                     stdout="",
                     stderr="command failed: Operation not possible due to RF-kill (-132)",
                 )
-            return subprocess.CompletedProcess(
-                command, 0, stdout=IW_SCAN_OUTPUT, stderr=""
-            )
+            return subprocess.CompletedProcess(command, 0, stdout=IW_SCAN_OUTPUT, stderr="")
 
         scanner = WiFiScanner(
             "wlan0",
@@ -152,9 +144,7 @@ class IwScannerRetryTests(unittest.TestCase):
 
         self.assertEqual(len(scanner.scan()), 3)
         self.assertEqual(len(calls), 2)
-        self.assertEqual(
-            recoveries, [("rfkill", "wlan0"), ("up", "wlan0")]
-        )
+        self.assertEqual(recoveries, [("rfkill", "wlan0"), ("up", "wlan0")])
         self.assertEqual(sleeps, [0.25])
 
     def test_brings_down_interface_up_before_scan(self):

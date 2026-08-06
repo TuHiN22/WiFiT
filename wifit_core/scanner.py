@@ -6,10 +6,10 @@ The parser is intentionally independent from subprocess execution so recorded
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import re
 import subprocess
 import time
+from collections.abc import Callable
 from typing import Any
 
 from .models import (
@@ -20,10 +20,7 @@ from .models import (
 )
 from .runner import CommandError, CommandRunner, CommandTimeoutError
 
-
-_BSS_HEADER_RE = re.compile(
-    r"^\s*BSS\s+([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})(?=\s|\()"
-)
+_BSS_HEADER_RE = re.compile(r"^\s*BSS\s+([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})(?=\s|\()")
 _FREQUENCY_RE = re.compile(r"^\s*freq:\s*(\d+)\s*$", re.IGNORECASE)
 _SIGNAL_RE = re.compile(
     r"^\s*signal:\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*dBm\b",
@@ -33,19 +30,11 @@ _CHANNEL_RES = (
     re.compile(r"\bDS Parameter set:\s*channel\s+(\d+)\b", re.IGNORECASE),
     re.compile(r"\bprimary channel:\s*(\d+)\b", re.IGNORECASE),
 )
-_WPS_HEADER_RE = re.compile(
-    r"^\s*WPS:\s*(?:\*\s*)?Version:\s*([^\s(]+)", re.IGNORECASE
-)
+_WPS_HEADER_RE = re.compile(r"^\s*WPS:\s*(?:\*\s*)?Version:\s*([^\s(]+)", re.IGNORECASE)
 _WPS_MARKER_RE = re.compile(r"^\s*WPS:\s*$", re.IGNORECASE)
-_WPS_VERSION2_RE = re.compile(
-    r"^\s*\*?\s*Version2:\s*([^\s(]+)", re.IGNORECASE
-)
-_WPS_NESTED_VERSION_RE = re.compile(
-    r"^\s*\*\s*Version:\s*([^\s(]+)", re.IGNORECASE
-)
-_WPS_LOCK_RE = re.compile(
-    r"^\s*\*?\s*AP setup locked:\s*([^\s(]+)", re.IGNORECASE
-)
+_WPS_VERSION2_RE = re.compile(r"^\s*\*?\s*Version2:\s*([^\s(]+)", re.IGNORECASE)
+_WPS_NESTED_VERSION_RE = re.compile(r"^\s*\*\s*Version:\s*([^\s(]+)", re.IGNORECASE)
+_WPS_LOCK_RE = re.compile(r"^\s*\*?\s*AP setup locked:\s*([^\s(]+)", re.IGNORECASE)
 _WSC_FIELD_RE = re.compile(
     r"^\s*\*?\s*(Manufacturer|Model Number|Model|Device name):\s*(.*)$",
     re.IGNORECASE,
@@ -486,9 +475,7 @@ class WiFiScanner:
                         return parse_iw_scan(stdout)
 
                     diagnostic = (
-                        stderr
-                        or stdout
-                        or f"iw exited with {completed.returncode}"
+                        stderr or stdout or f"iw exited with {completed.returncode}"
                     ).strip()
                     last_reason = self._recover_rfkill(diagnostic)
                 except subprocess.TimeoutExpired:

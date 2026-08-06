@@ -1,16 +1,15 @@
 # WiFiT .gitignore
 
-# Documentation files (internal use only)
-FIXES_APPLIED.md
-CHECKLIST_VERIFICATION.md
-VERIFIED_FEATURES.txt
-QUICK_REFERENCE.md
-QUICKSTART.md
-PROJECT_SUMMARY.md
-COMPLETION_SUMMARY.md
-COMMIT_SUMMARY.txt
-rebrand_config.yaml
-upstream.txt
+# Documentation policy: README.md is the only tracked documentation file
+*.md
+!/README.md
+
+# Non-Markdown internal documentation
+/NEXT_AGENT_PROMPT.txt
+/COMMIT_SUMMARY.txt
+/VERIFIED_FEATURES.txt
+/upstream.txt
+/rebrand_config.yaml
 
 # Python
 __pycache__/

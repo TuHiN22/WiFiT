@@ -70,9 +70,10 @@ def sample_attack_results():
 
 class ResultReporterTests(unittest.TestCase):
     def test_json_contains_scan_success_and_failure_and_uses_private_mode(self):
-        with tempfile.TemporaryDirectory() as temporary_directory, mock.patch.object(
-            reporter.os, "chmod", wraps=reporter.os.chmod
-        ) as chmod:
+        with (
+            tempfile.TemporaryDirectory() as temporary_directory,
+            mock.patch.object(reporter.os, "chmod", wraps=reporter.os.chmod) as chmod,
+        ):
             destination = ResultReporter().export(
                 Path(temporary_directory) / "combined",
                 access_points=[sample_access_point()],
@@ -101,7 +102,7 @@ class ResultReporterTests(unittest.TestCase):
             self.assertEqual(list(Path(temporary_directory).glob("*.tmp")), [])
 
     def test_csv_neutralizes_formula_cells_but_preserves_numeric_signal(self):
-        access_point = sample_access_point("=HYPERLINK(\"https://invalid\")")
+        access_point = sample_access_point('=HYPERLINK("https://invalid")')
         attacks = sample_attack_results()
 
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -114,13 +115,11 @@ class ResultReporterTests(unittest.TestCase):
                 rows = list(csv.DictReader(report_file))
 
         self.assertEqual(len(rows), 3)
-        self.assertEqual(rows[0]["ssid"], "'=HYPERLINK(\"https://invalid\")")
+        self.assertEqual(rows[0]["ssid"], '\'=HYPERLINK("https://invalid")')
         self.assertEqual(rows[0]["signal_dbm"], "-41.5")
         self.assertEqual(rows[1]["network_key"], "'@secret-key")
         self.assertEqual(rows[2]["message"], "'+registrar rejected PIN")
-        self.assertEqual(
-            [row["record_type"] for row in rows], ["scan", "attack", "attack"]
-        )
+        self.assertEqual([row["record_type"] for row in rows], ["scan", "attack", "attack"])
 
     def test_text_export_includes_wps_evidence_and_failed_attack(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

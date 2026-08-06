@@ -124,18 +124,14 @@ class PlatformParserTests(unittest.TestCase):
         self.assertFalse(states[1].is_wifi)
 
     def test_parse_link_state_prefers_administrative_flag(self):
-        self.assertTrue(
-            parse_link_is_up("4: wlan0: <BROADCAST,MULTICAST,UP> state DOWN")
-        )
+        self.assertTrue(parse_link_is_up("4: wlan0: <BROADCAST,MULTICAST,UP> state DOWN"))
         self.assertFalse(parse_link_is_up("4: wlan0: <BROADCAST> state UP"))
 
 
 class PlatformManagerTests(unittest.TestCase):
     def test_failed_scan_still_restores_a_previously_down_link(self):
         runner = LinkStateRunner(scan_succeeds=False)
-        manager = PlatformManager(
-            "wlan1", runner=runner, is_android=False, poll_interval=0
-        )
+        manager = PlatformManager("wlan1", runner=runner, is_android=False, poll_interval=0)
 
         try:
             selected_interface = manager.prepare()
@@ -159,9 +155,7 @@ class PlatformManagerTests(unittest.TestCase):
 
     def test_prepared_scan_brings_link_up_then_restores_down(self):
         runner = LinkStateRunner()
-        manager = PlatformManager(
-            "wlan1", runner=runner, is_android=False, poll_interval=0
-        )
+        manager = PlatformManager("wlan1", runner=runner, is_android=False, poll_interval=0)
 
         try:
             selected_interface = manager.prepare()
@@ -225,9 +219,7 @@ class PlatformManagerTests(unittest.TestCase):
             ),
         }
         runner = FakeRunner(responses)
-        manager = PlatformManager(
-            "wlan0", runner=runner, is_android=True, poll_interval=0
-        )
+        manager = PlatformManager("wlan0", runner=runner, is_android=True, poll_interval=0)
 
         self.assertEqual(manager.prepare(), "wlan0")
         self.assertEqual(manager.prepare(), "wlan0")

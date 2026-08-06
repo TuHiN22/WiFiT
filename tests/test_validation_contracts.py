@@ -48,9 +48,7 @@ def _os_import_aliases(tree: ast.AST) -> tuple[set[str], set[str]]:
     return module_aliases, system_aliases
 
 
-def _is_os_system_call(
-    node: ast.Call, module_aliases: set[str], system_aliases: set[str]
-) -> bool:
+def _is_os_system_call(node: ast.Call, module_aliases: set[str], system_aliases: set[str]) -> bool:
     function = node.func
     if isinstance(function, ast.Name):
         return function.id in system_aliases
@@ -190,14 +188,10 @@ def _extract_heredoc(source: str, delimiter: str) -> str:
 
     lines = source.splitlines()
     opener_index = next(
-        index
-        for index, line in enumerate(lines)
-        if "<<" in line and delimiter in line
+        index for index, line in enumerate(lines) if "<<" in line and delimiter in line
     )
     terminator_index = next(
-        index
-        for index in range(opener_index + 1, len(lines))
-        if lines[index].strip() == delimiter
+        index for index in range(opener_index + 1, len(lines)) if lines[index].strip() == delimiter
     )
     return "\n".join(lines[opener_index + 1 : terminator_index])
 
@@ -287,18 +281,14 @@ def test_termux_setup_installs_the_commands_used_by_validation() -> None:
     assert "check_termux || exit 1" in installer
     assert "install_dependencies_termux || exit 1" in installer
 
-    procedure = (REPO_ROOT / "HARDWARE_VALIDATION_PROCEDURE.md").read_text(
-        encoding="utf-8"
-    )
+    procedure = (REPO_ROOT / "HARDWARE_VALIDATION_PROCEDURE.md").read_text(encoding="utf-8")
     documented_root_repo = procedure.index("pkg install root-repo -y")
     documented_packages = procedure.index(
         "pkg install python git tsu iproute2 iw wpa-supplicant pixiewps -y"
     )
     assert documented_root_repo < documented_packages
 
-    phase1 = (VALIDATION_DIR / "01_verify_environment.sh").read_text(
-        encoding="utf-8"
-    )
+    phase1 = (VALIDATION_DIR / "01_verify_environment.sh").read_text(encoding="utf-8")
     assert "pkg install iproute2 -y" in phase1
 
 
@@ -344,9 +334,7 @@ def test_clean_clone_contains_and_tracks_the_complete_v3_test_inventory() -> Non
     """Do not let locally present, untracked test coverage disappear from clones."""
 
     missing = [
-        relative
-        for relative in EXPECTED_V3_TEST_MODULES
-        if not (REPO_ROOT / relative).is_file()
+        relative for relative in EXPECTED_V3_TEST_MODULES if not (REPO_ROOT / relative).is_file()
     ]
     assert not missing, "Expected test modules are missing: " + ", ".join(missing)
 

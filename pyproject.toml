@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wifit"
-version = "3.0.0-rc.5"
+version = "3.0.0-rc.6"
 description = "Professional WPS Testing Toolkit for Android/Termux"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -139,6 +139,8 @@ ignore_missing_imports = true
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
 select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
@@ -154,9 +156,18 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # function calls in argument defaults
     "B904",   # raise from within except without explicit exception
+    "ARG005", # unused lambda argument (intentional in static PIN definitions)
+    "ARG001", # unused function argument (regex handler API)
+    "SIM105", # contextlib.suppress (explicit try/except is clearer)
+    "SIM103", # direct return (explicit if/return is clearer)
+    "SIM108", # ternary operator (explicit if/else is clearer)
+    "SIM102", # nested if (explicit is clearer)
+    "W293",   # blank line whitespace (not critical)
+    "W291",   # trailing whitespace (not critical)
+    "UP036",  # version check (kept for clarity)
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
     "ARG",    # unused arguments are common in test fixtures
     "S101",   # assert is expected in tests

@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 import csv
-from datetime import datetime, timezone
-from enum import Enum
 import io
 import json
 import os
-from pathlib import Path
 import tempfile
+from collections.abc import Iterable
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from .models import AccessPoint, AttackResult
@@ -121,8 +121,7 @@ def _metadata_looks_sensitive(value: Any, key: str = "") -> bool:
         return value not in (None, "", [], {}, ())
     if isinstance(value, dict):
         return any(
-            _metadata_looks_sensitive(child, str(child_key))
-            for child_key, child in value.items()
+            _metadata_looks_sensitive(child, str(child_key)) for child_key, child in value.items()
         )
     if isinstance(value, (list, tuple, set)):
         return any(_metadata_looks_sensitive(child, key) for child in value)
@@ -204,9 +203,7 @@ class ResultReporter:
         *,
         report_format: ReportFormat | str | None = None,
     ) -> Path:
-        return self.export(
-            path, access_points=access_points, report_format=report_format
-        )
+        return self.export(path, access_points=access_points, report_format=report_format)
 
     def export_attacks(
         self,
@@ -215,9 +212,7 @@ class ResultReporter:
         *,
         report_format: ReportFormat | str | None = None,
     ) -> Path:
-        return self.export(
-            path, attack_results=attack_results, report_format=report_format
-        )
+        return self.export(path, attack_results=attack_results, report_format=report_format)
 
     @staticmethod
     def _render_json(
@@ -231,18 +226,19 @@ class ResultReporter:
             "scan_results": [access_point.to_record() for access_point in scans],
             "attack_results": [result.to_record() for result in attacks],
         }
-        return json.dumps(
-            payload,
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=False,
-            default=_json_default,
-        ) + "\n"
+        return (
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=False,
+                default=_json_default,
+            )
+            + "\n"
+        )
 
     @staticmethod
-    def _render_csv(
-        scans: list[AccessPoint], attacks: list[AttackResult]
-    ) -> str:
+    def _render_csv(scans: list[AccessPoint], attacks: list[AttackResult]) -> str:
         stream = io.StringIO(newline="")
         writer = csv.DictWriter(stream, fieldnames=_CSV_FIELDS, extrasaction="ignore")
         writer.writeheader()
@@ -287,15 +283,16 @@ class ResultReporter:
         ]
         for index, access_point in enumerate(scans, start=1):
             version = (
-                f"{access_point.wps_version.value} "
-                f"({access_point.wps_version_evidence.value})"
+                f"{access_point.wps_version.value} ({access_point.wps_version_evidence.value})"
                 if access_point.wps_version
                 else "n/a"
             )
             lock_state = (
                 "unknown"
                 if access_point.wps_locked is None
-                else "yes" if access_point.wps_locked else "no"
+                else "yes"
+                if access_point.wps_locked
+                else "no"
             )
             lines.extend(
                 (

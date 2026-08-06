@@ -17,11 +17,7 @@ class CommandRunnerTests(unittest.TestCase):
             [
                 sys.executable,
                 "-c",
-                (
-                    "import sys; "
-                    "print(sys.argv[1]); "
-                    "print(sys.argv[2], file=sys.stderr)"
-                ),
+                ("import sys; print(sys.argv[1]); print(sys.argv[2], file=sys.stderr)"),
                 "Cafe WiFi",
                 "literal;$(not-a-shell)",
             ],

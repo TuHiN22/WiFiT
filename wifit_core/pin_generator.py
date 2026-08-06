@@ -8,10 +8,11 @@ an 8-digit PIN with correct WPS checksum.
 from __future__ import annotations
 
 import re
-from typing import Callable
+from collections.abc import Callable
 
-
-_MAC_PATTERN = re.compile(r"^(?:[0-9A-Fa-f]{2}([:\-])[0-9A-Fa-f]{2}(?:\1[0-9A-Fa-f]{2}){4}|[0-9A-Fa-f]{12})$")
+_MAC_PATTERN = re.compile(
+    r"^(?:[0-9A-Fa-f]{2}([:\-])[0-9A-Fa-f]{2}(?:\1[0-9A-Fa-f]{2}){4}|[0-9A-Fa-f]{12})$"
+)
 
 
 class MACAddress:
@@ -29,7 +30,7 @@ class MACAddress:
                 raise ValueError(f"Invalid MAC address format: {mac!r}")
             cleaned = re.sub(r"[:\-.]", "", normalized)
             self._integer = int(cleaned, 16)
-            self._string = ":".join(cleaned[i:i+2] for i in range(0, 12, 2))
+            self._string = ":".join(cleaned[i : i + 2] for i in range(0, 12, 2))
         else:
             raise TypeError(f"MAC must be str or int, not {type(mac).__name__}")
 
@@ -44,12 +45,12 @@ class MACAddress:
     @property
     def octets(self) -> tuple[int, int, int, int, int, int]:
         """Return six integer octets."""
-        return tuple(int(self._string[i:i+2], 16) for i in range(0, 17, 3))  # type: ignore[return-value]
+        return tuple(int(self._string[i : i + 2], 16) for i in range(0, 17, 3))  # type: ignore[return-value]
 
     @staticmethod
     def _format_mac(value: int) -> str:
         hex_str = f"{value:012X}"
-        return ":".join(hex_str[i:i+2] for i in range(0, 12, 2))
+        return ":".join(hex_str[i : i + 2] for i in range(0, 12, 2))
 
     def __str__(self) -> str:
         return self._string
@@ -71,7 +72,7 @@ class MACAddress:
 
 def wps_checksum(pin: int) -> int:
     """Compute the WPS PIN checksum digit.
-    
+
     The WPS specification processes digits from right to left (least significant first):
     accum = 3×d₇ + d₆ + 3×d₅ + d₄ + 3×d₃ + d₂ + 3×d₁
     checksum = (10 - (accum mod 10)) mod 10
@@ -84,7 +85,7 @@ def wps_checksum(pin: int) -> int:
         accum += 3 * (current % 10)
         current //= 10
         if current:
-            accum += (current % 10)
+            accum += current % 10
             current //= 10
     return (10 - (accum % 10)) % 10
 
@@ -100,7 +101,7 @@ def format_pin(pin: int | str) -> str:
         if int(pin[7]) != expected_checksum:
             raise ValueError(f"PIN {pin!r} has invalid checksum")
         return pin
-    
+
     if pin < 0 or pin > 9999999:
         raise ValueError(f"PIN must be 7 digits (0..9999999): {pin}")
     checksum_digit = wps_checksum(pin)
@@ -120,7 +121,6 @@ class PINGenerator:
             "pin36": self._pin36,
             "pin40": self._pin40,
             "pin44": self._pin44,
-            
             # Vendor-specific MAC-based
             "pinDLink": self._pin_dlink,
             "pinDLink1": self._pin_dlink_plus1,
@@ -132,7 +132,6 @@ class PINGenerator:
             "pinOUIaddNIC": self._pin_oui_add_nic,
             "pinOUIsubNIC": self._pin_oui_sub_nic,
             "pinOUIxorNIC": self._pin_oui_xor_nic,
-            
             # Static PINs (manufacturer defaults)
             "pinEmpty": lambda mac: "",
             "pinCisco": lambda mac: 1234567,
@@ -158,40 +157,121 @@ class PINGenerator:
             "pinH108L": lambda mac: 9422988,
             "pinONO": lambda mac: 9575521,
         }
-        
+
         # Vendor prefixes that suggest specific algorithms
         self._vendor_hints: dict[str, list[str]] = {
-            "pin24": ["04BF6D", "0E5D4E", "107BEF", "14A9E3", "28285D", "2A285D",
-                      "32B2DC", "381766", "404A03", "4E5D4E", "5067F0", "5CF4AB",
-                      "6A285D", "8E5D4E", "AA285D", "B0B2DC", "C86C87", "CC5D4E",
-                      "CE5D4E", "EA285D", "E243F6", "EC43F6", "EE43F6", "F2B2DC",
-                      "FCF528", "FEF528"],
+            "pin24": [
+                "04BF6D",
+                "0E5D4E",
+                "107BEF",
+                "14A9E3",
+                "28285D",
+                "2A285D",
+                "32B2DC",
+                "381766",
+                "404A03",
+                "4E5D4E",
+                "5067F0",
+                "5CF4AB",
+                "6A285D",
+                "8E5D4E",
+                "AA285D",
+                "B0B2DC",
+                "C86C87",
+                "CC5D4E",
+                "CE5D4E",
+                "EA285D",
+                "E243F6",
+                "EC43F6",
+                "EE43F6",
+                "F2B2DC",
+                "FCF528",
+                "FEF528",
+            ],
             "pin28": ["200BC7", "4846FB", "D46AA8", "F84ABF"],
-            "pin32": ["000726", "D8FEE3", "FC8B97", "1062EB", "1C5F2B", "48EE0C",
-                      "802689", "908D78", "E8CC18"],
-            "pinDLink": ["14D64D", "1C7EE5", "28107B", "84C9B2", "A0AB1B", "B8A386",
-                         "C0A0BB", "CCB255", "FC7516", "0014D1", "D8EB97"],
-            "pinDLink1": ["0018E7", "00195B", "001CF0", "001E58", "002191", "0022B0",
-                          "002401", "00265A", "14D64D"],
-            "pinASUS": ["049226", "04D9F5", "08606E", "0862669", "107B44", "10BF48",
-                        "10C37B", "14DDA9", "1C872C", "2C56DC", "305A3A", "382C4A",
-                        "38D547", "40167E", "50465D", "54A050", "6045CB", "60A44C",
-                        "704D7B", "74D02B", "7824AF", "88D7F6", "9C5C8E", "AC220B",
-                        "AC9E17", "B06EBF", "BCEE7B", "C860007", "D017C2", "D850E6",
-                        "E03F49", "F0795978", "F832E4"],
+            "pin32": [
+                "000726",
+                "D8FEE3",
+                "FC8B97",
+                "1062EB",
+                "1C5F2B",
+                "48EE0C",
+                "802689",
+                "908D78",
+                "E8CC18",
+            ],
+            "pinDLink": [
+                "14D64D",
+                "1C7EE5",
+                "28107B",
+                "84C9B2",
+                "A0AB1B",
+                "B8A386",
+                "C0A0BB",
+                "CCB255",
+                "FC7516",
+                "0014D1",
+                "D8EB97",
+            ],
+            "pinDLink1": [
+                "0018E7",
+                "00195B",
+                "001CF0",
+                "001E58",
+                "002191",
+                "0022B0",
+                "002401",
+                "00265A",
+                "14D64D",
+            ],
+            "pinASUS": [
+                "049226",
+                "04D9F5",
+                "08606E",
+                "0862669",
+                "107B44",
+                "10BF48",
+                "10C37B",
+                "14DDA9",
+                "1C872C",
+                "2C56DC",
+                "305A3A",
+                "382C4A",
+                "38D547",
+                "40167E",
+                "50465D",
+                "54A050",
+                "6045CB",
+                "60A44C",
+                "704D7B",
+                "74D02B",
+                "7824AF",
+                "88D7F6",
+                "9C5C8E",
+                "AC220B",
+                "AC9E17",
+                "B06EBF",
+                "BCEE7B",
+                "C860007",
+                "D017C2",
+                "D850E6",
+                "E03F49",
+                "F0795978",
+                "F832E4",
+            ],
             "pinAirocon": ["0007262F", "000B2B4A", "000EF4E7", "001333B", "00177C", "001AEF"],
         }
 
     def generate(self, algorithm: str, mac: str | MACAddress) -> str:
         """Generate a WPS PIN using the specified algorithm and MAC address.
-        
+
         Args:
             algorithm: Algorithm identifier (e.g., "pin24", "pinASUS", "pinEmpty")
             mac: MAC address as string or MACAddress object
-            
+
         Returns:
             8-digit PIN string with checksum, or empty string for pinEmpty
-            
+
         Raises:
             ValueError: If algorithm is unknown or MAC is invalid
         """
@@ -200,76 +280,107 @@ class PINGenerator:
                 f"Unknown algorithm: {algorithm!r}. "
                 f"Available: {', '.join(sorted(self._algorithms.keys()))}"
             )
-        
+
         mac_addr = mac if isinstance(mac, MACAddress) else MACAddress(mac)
         result = self._algorithms[algorithm](mac_addr)
-        
+
         if algorithm == "pinEmpty":
             return ""
-        
+
         if isinstance(result, str):
             return result
-        
+
         # Apply checksum to integer results
         pin_7digit = result % 10000000
         return format_pin(pin_7digit)
 
     def get_suggested(self, mac: str | MACAddress) -> list[tuple[str, str]]:
         """Return (algorithm_id, pin) pairs suggested for this MAC's OUI.
-        
+
         Suggestions are based on known vendor OUI patterns. Generic algorithms
         and all static PINs are always included after vendor-specific ones.
         """
         mac_addr = mac if isinstance(mac, MACAddress) else MACAddress(mac)
         mac_upper = mac_addr.string.replace(":", "").upper()
-        
+
         suggested: list[str] = []
-        
+
         # Check vendor-specific hints
         for algo_id, prefixes in self._vendor_hints.items():
             if any(mac_upper.startswith(prefix.upper()) for prefix in prefixes):
                 suggested.append(algo_id)
-        
+
         # Add generic MAC algorithms if not already suggested
         for algo_id in ["pin24", "pin28", "pin32", "pin36", "pin40", "pin44"]:
             if algo_id not in suggested:
                 suggested.append(algo_id)
-        
+
         # Add vendor-specific algorithms not yet tried
-        for algo_id in ["pinDLink", "pinDLink1", "pinASUS", "pinAirocon",
-                        "pinInvNIC", "pinNIC2", "pinNIC3", "pinOUIaddNIC",
-                        "pinOUIsubNIC", "pinOUIxorNIC"]:
+        for algo_id in [
+            "pinDLink",
+            "pinDLink1",
+            "pinASUS",
+            "pinAirocon",
+            "pinInvNIC",
+            "pinNIC2",
+            "pinNIC3",
+            "pinOUIaddNIC",
+            "pinOUIsubNIC",
+            "pinOUIxorNIC",
+        ]:
             if algo_id not in suggested:
                 suggested.append(algo_id)
-        
+
         # Add all static PINs last
-        static_algos = [aid for aid, func in self._algorithms.items() 
-                       if aid.startswith("pin") and aid not in suggested
-                       and aid != "pinEmpty"]
+        static_algos = [
+            aid
+            for aid, func in self._algorithms.items()
+            if aid.startswith("pin") and aid not in suggested and aid != "pinEmpty"
+        ]
         suggested.extend(sorted(static_algos))
-        
+
         return [(algo_id, self.generate(algo_id, mac_addr)) for algo_id in suggested]
 
-    def get_all(self, mac: str | MACAddress, *, include_static: bool = True) -> list[tuple[str, str]]:
+    def get_all(
+        self, mac: str | MACAddress, *, include_static: bool = True
+    ) -> list[tuple[str, str]]:
         """Return (algorithm_id, pin) for all algorithms."""
         mac_addr = mac if isinstance(mac, MACAddress) else MACAddress(mac)
         results: list[tuple[str, str]] = []
-        
+
         for algo_id in sorted(self._algorithms.keys()):
-            if not include_static and algo_id.startswith("pin") and algo_id not in {
-                "pin24", "pin28", "pin32", "pin36", "pin40", "pin44",
-                "pinDLink", "pinDLink1", "pinASUS", "pinAirocon",
-                "pinInvNIC", "pinNIC2", "pinNIC3", "pinOUIaddNIC",
-                "pinOUIsubNIC", "pinOUIxorNIC", "pinEmpty"
-            }:
+            if (
+                not include_static
+                and algo_id.startswith("pin")
+                and algo_id
+                not in {
+                    "pin24",
+                    "pin28",
+                    "pin32",
+                    "pin36",
+                    "pin40",
+                    "pin44",
+                    "pinDLink",
+                    "pinDLink1",
+                    "pinASUS",
+                    "pinAirocon",
+                    "pinInvNIC",
+                    "pinNIC2",
+                    "pinNIC3",
+                    "pinOUIaddNIC",
+                    "pinOUIsubNIC",
+                    "pinOUIxorNIC",
+                    "pinEmpty",
+                }
+            ):
                 continue
-            
+
             results.append((algo_id, self.generate(algo_id, mac_addr)))
-        
+
         return results
 
     # Generic MAC-based algorithms
-    
+
     @staticmethod
     def _pin24(mac: MACAddress) -> int:
         """Use lower 24 bits of MAC."""
@@ -301,17 +412,19 @@ class PINGenerator:
         return mac.integer & 0xFFFFFFFFFFF
 
     # Vendor-specific algorithms
-    
+
     @staticmethod
     def _pin_dlink(mac: MACAddress) -> int:
         """D-Link PIN algorithm."""
         nic = mac.integer & 0xFFFFFF
         pin = nic ^ 0x55AA55
-        pin ^= (((pin & 0xF) << 4) +
-                ((pin & 0xF) << 8) +
-                ((pin & 0xF) << 12) +
-                ((pin & 0xF) << 16) +
-                ((pin & 0xF) << 20))
+        pin ^= (
+            ((pin & 0xF) << 4)
+            + ((pin & 0xF) << 8)
+            + ((pin & 0xF) << 12)
+            + ((pin & 0xF) << 16)
+            + ((pin & 0xF) << 20)
+        )
         pin %= 10000000
         if pin < 1000000:
             pin += ((pin % 9) * 1000000) + 1000000
@@ -328,21 +441,23 @@ class PINGenerator:
         octets = mac.octets
         pin_str = ""
         for i in range(7):
-            pin_str += str((octets[i % 6] + octets[5]) % 
-                          (10 - (i + octets[1] + octets[2] + octets[3] + octets[4] + octets[5]) % 7))
+            pin_str += str(
+                (octets[i % 6] + octets[5])
+                % (10 - (i + octets[1] + octets[2] + octets[3] + octets[4] + octets[5]) % 7)
+            )
         return int(pin_str)
 
     @staticmethod
     def _pin_airocon(mac: MACAddress) -> int:
         """Airocon Realtek PIN algorithm."""
         b = mac.octets
-        pin = ((b[0] + b[1]) % 10)
-        pin += (((b[5] + b[0]) % 10) * 10)
-        pin += (((b[4] + b[5]) % 10) * 100)
-        pin += (((b[3] + b[4]) % 10) * 1000)
-        pin += (((b[2] + b[3]) % 10) * 10000)
-        pin += (((b[1] + b[2]) % 10) * 100000)
-        pin += (((b[0] + b[1]) % 10) * 1000000)
+        pin = (b[0] + b[1]) % 10
+        pin += ((b[5] + b[0]) % 10) * 10
+        pin += ((b[4] + b[5]) % 10) * 100
+        pin += ((b[3] + b[4]) % 10) * 1000
+        pin += ((b[2] + b[3]) % 10) * 10000
+        pin += ((b[1] + b[2]) % 10) * 100000
+        pin += ((b[0] + b[1]) % 10) * 1000000
         return pin
 
     @staticmethod

@@ -48,7 +48,7 @@ def test_attack_progress_first_half_valid():
     progress = AttackProgress()
     progress.last_m_message = 5
     assert progress.first_half_valid()
-    
+
     progress.last_m_message = 4
     assert not progress.first_half_valid()
 

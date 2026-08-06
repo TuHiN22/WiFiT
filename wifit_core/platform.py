@@ -7,15 +7,14 @@ missing Android and rfkill utilities as optional capabilities.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
-from pathlib import Path
 import re
 import time
-from typing import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
+from pathlib import Path
 
 from .runner import CommandError, CommandResult, CommandRunner
-
 
 _INTERFACE_NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,15}$")
 _RFKILL_HEADER = re.compile(r"^(\d+):\s*([^:]+):\s*(.+?)\s*$")
@@ -202,9 +201,7 @@ class PlatformManager:
 
         self.requested_interface = interface
         self.runner = runner or CommandRunner()
-        self.is_android = (
-            self._detect_android() if is_android is None else is_android
-        )
+        self.is_android = self._detect_android() if is_android is None else is_android
         self.sys_class_net = Path(sys_class_net)
         self.poll_attempts = poll_attempts
         self.poll_interval = poll_interval
@@ -241,9 +238,7 @@ class PlatformManager:
 
     def interface_is_up(self, interface: str) -> bool | None:
         self._validate_interface(interface)
-        result = self._optional_run(
-            ("ip", "-o", "link", "show", "dev", interface), timeout=5.0
-        )
+        result = self._optional_run(("ip", "-o", "link", "show", "dev", interface), timeout=5.0)
         if result is not None and result.ok:
             parsed = parse_link_is_up(result.stdout)
             if parsed is not None:
@@ -253,9 +248,7 @@ class PlatformManager:
         # ip utility is absent or has a reduced feature set.
         try:
             flags = int(
-                (self.sys_class_net / interface / "flags")
-                .read_text(encoding="ascii")
-                .strip(),
+                (self.sys_class_net / interface / "flags").read_text(encoding="ascii").strip(),
                 0,
             )
         except (OSError, ValueError):
@@ -307,9 +300,7 @@ class PlatformManager:
             )
             if result is None or not result.ok:
                 detail = result.stderr.strip() if result is not None else "ip is unavailable"
-                raise PlatformError(
-                    f"could not bring interface {selected.name!r} up: {detail}"
-                )
+                raise PlatformError(f"could not bring interface {selected.name!r} up: {detail}")
             # Only restore DOWN when it was positively observed before our
             # change; an unknown original state must not be guessed at exit.
             self._interface_changed = self._original_interface_up is False
@@ -321,17 +312,13 @@ class PlatformManager:
             return ()
         return parse_rfkill_list(result.stdout)
 
-    def unblock_wifi(
-        self, snapshot: Sequence[RfkillState] | None = None
-    ) -> tuple[str, ...]:
+    def unblock_wifi(self, snapshot: Sequence[RfkillState] | None = None) -> tuple[str, ...]:
         states = tuple(snapshot) if snapshot is not None else self.snapshot_rfkill()
         changed: list[str] = []
         for state in states:
             if not state.is_wifi or not state.soft_blocked or state.hard_blocked:
                 continue
-            result = self._optional_run(
-                ("rfkill", "unblock", state.identifier), timeout=5.0
-            )
+            result = self._optional_run(("rfkill", "unblock", state.identifier), timeout=5.0)
             if result is not None and result.ok:
                 self._unblocked_rfkill_ids.add(state.identifier)
                 changed.append(state.identifier)
@@ -342,9 +329,7 @@ class PlatformManager:
             return AndroidWifiState(None, None)
         return AndroidWifiState(
             wifi_on=self._get_android_boolean("wifi_on"),
-            scan_always_enabled=self._get_android_boolean(
-                "wifi_scan_always_enabled"
-            ),
+            scan_always_enabled=self._get_android_boolean("wifi_scan_always_enabled"),
         )
 
     def prepare(
@@ -375,11 +360,7 @@ class PlatformManager:
                     "wifi_scan_always_enabled", False
                 )
 
-            if (
-                self.is_android
-                and enable_android_wifi
-                and self._android_snapshot.wifi_on is False
-            ):
+            if self.is_android and enable_android_wifi and self._android_snapshot.wifi_on is False:
                 self._android_wifi_changed = self._set_android_wifi(True)
 
             interfaces: tuple[WirelessInterface, ...] = ()
@@ -413,9 +394,7 @@ class PlatformManager:
 
         rfkill_failures: set[str] = set()
         for identifier in sorted(self._unblocked_rfkill_ids):
-            result = self._optional_run(
-                ("rfkill", "block", identifier), timeout=5.0
-            )
+            result = self._optional_run(("rfkill", "block", identifier), timeout=5.0)
             if result is None or not result.ok:
                 failures.append(f"failed to restore rfkill {identifier}")
                 rfkill_failures.add(identifier)
@@ -448,9 +427,7 @@ class PlatformManager:
         return tuple(failures)
 
     def _get_android_boolean(self, key: str) -> bool | None:
-        result = self._optional_run(
-            ("settings", "get", "global", key), timeout=5.0
-        )
+        result = self._optional_run(("settings", "get", "global", key), timeout=5.0)
         if result is None or not result.ok:
             return None
         value = result.stdout.strip().casefold()
@@ -473,14 +450,10 @@ class PlatformManager:
         if result is not None and result.ok:
             return True
         modern_state = "enabled" if enabled else "disabled"
-        result = self._optional_run(
-            ("cmd", "wifi", "set-wifi-enabled", modern_state), timeout=10.0
-        )
+        result = self._optional_run(("cmd", "wifi", "set-wifi-enabled", modern_state), timeout=10.0)
         return result is not None and result.ok
 
-    def _optional_run(
-        self, argv: Sequence[str], *, timeout: float
-    ) -> CommandResult | None:
+    def _optional_run(self, argv: Sequence[str], *, timeout: float) -> CommandResult | None:
         try:
             return self.runner.run(argv, timeout=timeout)
         except CommandError:

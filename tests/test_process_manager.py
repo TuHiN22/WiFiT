@@ -26,8 +26,7 @@ class ProcessDiscoveryTests(unittest.TestCase):
             process_dir = root / "proc" / "222"
             process_dir.mkdir(parents=True)
             (process_dir / "cmdline").write_bytes(
-                os.fsencode(executable)
-                + b"\0-i\0wlan0\0--label\0Cafe WiFi\0"
+                os.fsencode(executable) + b"\0-i\0wlan0\0--label\0Cafe WiFi\0"
             )
             (process_dir / "comm").write_text("wpa_supplicant\n", encoding="utf-8")
             stat_fields = ["S", *("0" for _ in range(18)), "98765"]
@@ -131,9 +130,7 @@ class ProcessLifecycleTests(unittest.TestCase):
                 self.assertTrue(journal_path.is_file())
             payload = json.loads(journal_path.read_text(encoding="utf-8"))
             self.assertFalse(payload["active"])
-            self.assertEqual(
-                payload["processes"][0]["snapshot"]["argv"][-1], "Cafe WiFi"
-            )
+            self.assertEqual(payload["processes"][0]["snapshot"]["argv"][-1], "Cafe WiFi")
 
     def test_context_restores_after_an_exception(self):
         with tempfile.TemporaryDirectory() as temporary:
