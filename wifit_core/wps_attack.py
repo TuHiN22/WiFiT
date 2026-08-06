@@ -219,7 +219,7 @@ class WPASupplicantController:
 
                     # Verify termination by checking if process still exists
                     # On Linux, kill -0 checks if process exists without sending signal
-                    for attempt in range(10):  # Wait up to 1 second
+                    for _ in range(10):  # Wait up to 1 second
                         check_result = self.runner.run(["kill", "-0", str(pid)], timeout=1.0)
                         if not check_result.ok:
                             # Process no longer exists (kill -0 failed)
