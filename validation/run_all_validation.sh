@@ -111,6 +111,22 @@ log_info "Master log: $MASTER_LOG"
 check_phase_scripts
 check_root
 
+# Validate and normalize BSSID once upfront
+validate_bssid() {
+    local bssid="$1"
+    # Validate format: XX:XX:XX:XX:XX:XX where X is hex
+    if [[ ! "$bssid" =~ ^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]; then
+        log_error "Invalid BSSID format: $bssid"
+        log_error "Expected format: AA:BB:CC:DD:EE:FF (hex octets separated by colons)"
+        exit 1
+    fi
+    # Normalize to uppercase
+    echo "$bssid" | tr '[:lower:]' '[:upper:]'
+}
+
+TEST_BSSID=$(validate_bssid "$TEST_BSSID")
+log_info "Normalized BSSID: $TEST_BSSID"
+
 # Test results tracking
 declare -A PHASE_RESULTS
 TOTAL_PHASES=8
@@ -191,6 +207,9 @@ fi
 # Phase 8: Recovery & Cleanup
 run_phase 8 "Recovery & Cleanup" "08_test_recovery.sh" "$TEST_BSSID" || true
 
+# Collect provenance at END (after Phase 8) to detect any changes
+collect_git_provenance "end"
+
 # Generate Summary Report
 log_info ""
 log_info "=========================================="
@@ -220,54 +239,98 @@ log_info "Passed Phases: $PASSED_PHASES / $TOTAL_PHASES"
 log_info "Validation completed at $(date)"
 log_info "Full log saved to: $MASTER_LOG"
 
+# ============================================================================
+# Git Provenance Collection - START
+# ============================================================================
+# Use command-scoped safe.directory (read-only, no repository mutation)
+# Capture provenance at start AND end to detect any changes during validation
+
+collect_git_provenance() {
+    local phase="$1"  # "start" or "end"
+
+    # Full 40-character commit SHA (command-scoped safe.directory)
+    if ! GIT_COMMIT_FULL=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null); then
+        log_error "BLOCKER: Cannot determine commit SHA at validation $phase."
+        log_error "Git provenance is mandatory. This validation cannot be tied to a reproducible commit."
+        exit 2
+    fi
+
+    # Short SHA for display
+    GIT_COMMIT_SHORT=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+    # Branch or detached HEAD
+    GIT_BRANCH=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    if [[ "$GIT_BRANCH" == "HEAD" ]]; then
+        GIT_BRANCH="detached"
+    fi
+
+    # Exact tag if present
+    GIT_TAG=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" describe --tags --exact-match 2>/dev/null || echo "")
+
+    # Complete dirty status (working tree + index + untracked)
+    GIT_STATUS_PORCELAIN=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" status --porcelain 2>/dev/null || echo "")
+    if [[ -z "$GIT_STATUS_PORCELAIN" ]]; then
+        GIT_CLEAN="true"
+        GIT_DIRTY=""
+    else
+        GIT_CLEAN="false"
+        GIT_DIRTY="-dirty"
+    fi
+
+    # Export for comparison between start/end
+    if [[ "$phase" == "start" ]]; then
+        export GIT_COMMIT_FULL_START="$GIT_COMMIT_FULL"
+        export GIT_CLEAN_START="$GIT_CLEAN"
+        export GIT_STATUS_START="$GIT_STATUS_PORCELAIN"
+
+        log_info "Git Provenance (validation start):"
+        log_info "  Commit (full): $GIT_COMMIT_FULL"
+        log_info "  Commit (short): $GIT_COMMIT_SHORT"
+        log_info "  Branch: $GIT_BRANCH"
+        log_info "  Tag: ${GIT_TAG:-none}"
+        log_info "  Clean: $GIT_CLEAN"
+
+        # Fail immediately if worktree is dirty at start
+        if [[ "$GIT_CLEAN" != "true" ]]; then
+            log_error "BLOCKER: Worktree is dirty at validation start."
+            log_error "Validation requires a clean checkout of an exact commit/tag."
+            log_error "Dirty files:"
+            echo "$GIT_STATUS_PORCELAIN" | tee -a "$MASTER_LOG"
+            exit 2
+        fi
+    else
+        # Verify provenance hasn't changed during validation
+        if [[ "$GIT_COMMIT_FULL" != "$GIT_COMMIT_FULL_START" ]]; then
+            log_error "BLOCKER: Git commit SHA changed during validation!"
+            log_error "  Start: $GIT_COMMIT_FULL_START"
+            log_error "  End:   $GIT_COMMIT_FULL"
+            log_error "Validation results are invalid - tested commit is unknown."
+            exit 2
+        fi
+
+        if [[ "$GIT_CLEAN" != "$GIT_CLEAN_START" ]]; then
+            log_error "BLOCKER: Worktree state changed during validation!"
+            log_error "  Start: clean=$GIT_CLEAN_START"
+            log_error "  End:   clean=$GIT_CLEAN"
+            if [[ "$GIT_CLEAN" == "false" ]]; then
+                log_error "Dirty files at end:"
+                echo "$GIT_STATUS_PORCELAIN" | tee -a "$MASTER_LOG"
+            fi
+            log_error "Validation results are invalid - tested code is uncertain."
+            exit 2
+        fi
+
+        log_info "Git Provenance (validation end):"
+        log_info "  Commit: $GIT_COMMIT_FULL (unchanged ✓)"
+        log_info "  Worktree: clean (unchanged ✓)"
+    fi
+}
+
 # Get dynamic version
 WIFIT_VERSION=$(python3 -c "from wifit_core import __version__; print(__version__)" 2>/dev/null || echo "unknown")
 
-# Configure Git to trust the repository if needed (Termux root context)
-git config --local --add safe.directory "$REPO_ROOT" 2>/dev/null || true
-
-# Get full Git provenance with explicit repository context
-cd "$REPO_ROOT" || {
-    log_error "Cannot access repository root: $REPO_ROOT"
-    exit 2
-}
-
-# Full 40-character commit SHA
-GIT_COMMIT_FULL=$(git rev-parse HEAD 2>/dev/null)
-if [[ -z "$GIT_COMMIT_FULL" ]]; then
-    log_error "BLOCKER: Cannot determine commit SHA. Git provenance is mandatory."
-    log_error "This validation run cannot be tied to a reproducible commit."
-    exit 2
-fi
-
-# Short SHA for display
-GIT_COMMIT_SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-
-# Branch or detached HEAD
-GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-if [[ "$GIT_BRANCH" == "HEAD" ]]; then
-    GIT_BRANCH="detached"
-fi
-
-# Exact tag if present
-GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
-
-# Complete dirty status (working tree + index + untracked)
-GIT_STATUS_PORCELAIN=$(git status --porcelain 2>/dev/null)
-if [[ -z "$GIT_STATUS_PORCELAIN" ]]; then
-    GIT_CLEAN="true"
-    GIT_DIRTY=""
-else
-    GIT_CLEAN="false"
-    GIT_DIRTY="-dirty"
-fi
-
-log_info "Git Provenance:"
-log_info "  Commit (full): $GIT_COMMIT_FULL"
-log_info "  Commit (short): $GIT_COMMIT_SHORT"
-log_info "  Branch: $GIT_BRANCH"
-log_info "  Tag: ${GIT_TAG:-none}"
-log_info "  Clean: $GIT_CLEAN"
+# Collect provenance at START (before Phase 1)
+collect_git_provenance "start"
 
 # Compute overall status (must pass ALL 8 phases)
 if [[ $PASSED_PHASES -eq $TOTAL_PHASES ]]; then
@@ -276,49 +339,74 @@ else
     OVERALL_STATUS="FAIL"
 fi
 
-# Generate JSON summary using Python for proper escaping
+# Generate JSON summary using Python with safe argument passing
 SUMMARY_JSON="$LOGS_DIR/validation_summary_$TIMESTAMP.json"
-python3 << PYEOF > "$SUMMARY_JSON"
+
+# Build phase results as a JSON object
+PHASES_JSON="{"
+for phase in {1..8}; do
+    result="${PHASE_RESULTS[$phase]:-UNKNOWN}"
+    PHASES_JSON+="\"phase_$phase\": \"$result\""
+    if [[ $phase -lt 8 ]]; then
+        PHASES_JSON+=","
+    fi
+done
+PHASES_JSON+="}"
+
+# Pass data as environment variables to avoid injection
+export JSON_TIMESTAMP="$TIMESTAMP"
+export JSON_TARGET_BSSID="$TEST_BSSID"
+export JSON_WIFIT_VERSION="$WIFIT_VERSION"
+export JSON_GIT_COMMIT_FULL="$GIT_COMMIT_FULL"
+export JSON_GIT_COMMIT_SHORT="$GIT_COMMIT_SHORT"
+export JSON_GIT_BRANCH="$GIT_BRANCH"
+export JSON_GIT_TAG="$GIT_TAG"
+export JSON_GIT_CLEAN="$GIT_CLEAN"
+export JSON_GIT_STATUS_PORCELAIN="$GIT_STATUS_PORCELAIN"
+export JSON_PHASES="$PHASES_JSON"
+export JSON_TOTAL_PHASES="$TOTAL_PHASES"
+export JSON_PASSED_PHASES="$PASSED_PHASES"
+export JSON_OVERALL_STATUS="$OVERALL_STATUS"
+
+python3 << 'PYEOF' > "$SUMMARY_JSON"
 import json
+import os
 import sys
 
-phases = {}
-for i in range(1, 9):
-    result = "${PHASE_RESULTS[" + str(i) + "]:-UNKNOWN}"
-    phases[f"phase_{i}"] = result
-
+# Read from environment variables (safe from injection)
 data = {
     "validation_run": {
-        "timestamp": "$TIMESTAMP",
-        "target_bssid": "$TEST_BSSID",
-        "wifit_version": "$WIFIT_VERSION"
+        "timestamp": os.environ.get("JSON_TIMESTAMP", ""),
+        "target_bssid": os.environ.get("JSON_TARGET_BSSID", ""),
+        "wifit_version": os.environ.get("JSON_WIFIT_VERSION", "")
     },
     "git_provenance": {
-        "commit_full": "$GIT_COMMIT_FULL",
-        "commit_short": "$GIT_COMMIT_SHORT",
-        "branch": "$GIT_BRANCH",
-        "tag": "${GIT_TAG:-}",
-        "clean": $GIT_CLEAN,
-        "status_porcelain": """$GIT_STATUS_PORCELAIN"""
+        "commit_full": os.environ.get("JSON_GIT_COMMIT_FULL", ""),
+        "commit_short": os.environ.get("JSON_GIT_COMMIT_SHORT", ""),
+        "branch": os.environ.get("JSON_GIT_BRANCH", ""),
+        "tag": os.environ.get("JSON_GIT_TAG", ""),
+        "clean": os.environ.get("JSON_GIT_CLEAN", "") == "true",
+        "status_porcelain": os.environ.get("JSON_GIT_STATUS_PORCELAIN", "")
     },
-    "phases": {
-$(for phase in {1..8}; do
-    result="${PHASE_RESULTS[$phase]:-UNKNOWN}"
-    echo "        \"phase_$phase\": \"$result\""
-    if [[ $phase -lt 8 ]]; then
-        echo ","
-    fi
-done)
-    },
+    "phases": json.loads(os.environ.get("JSON_PHASES", "{}")),
     "summary": {
-        "total_phases": $TOTAL_PHASES,
-        "passed": $PASSED_PHASES,
-        "overall_status": "$OVERALL_STATUS"
+        "total_phases": int(os.environ.get("JSON_TOTAL_PHASES", "0")),
+        "passed": int(os.environ.get("JSON_PASSED_PHASES", "0")),
+        "overall_status": os.environ.get("JSON_OVERALL_STATUS", "")
     }
 }
 
-print(json.dumps(data, indent=2))
+try:
+    print(json.dumps(data, indent=2))
+except Exception as e:
+    sys.stderr.write(f"JSON generation failed: {e}\n")
+    sys.exit(1)
 PYEOF
+
+if [[ ! -s "$SUMMARY_JSON" ]]; then
+    log_error "JSON generation produced empty file"
+    exit 1
+fi
 
 log_info "Summary JSON saved to: $SUMMARY_JSON"
 

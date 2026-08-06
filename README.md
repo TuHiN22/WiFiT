@@ -4,7 +4,7 @@
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                   🛡️  WiFiT v3.0.0-rc.6                     ║
+║                   🛡️  WiFiT v3.0.0-rc.8                     ║
 ║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -14,7 +14,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Rooted%20Android%20%2B%20Termux-brightgreen.svg)](https://github.com/TuHiN22/WiFiT)
 [![Root Required](https://img.shields.io/badge/root-required-red.svg)](https://magisk.me/)
-[![Version](https://img.shields.io/badge/version-3.0.0--rc.6-orange.svg)](#changelog)
+[![Version](https://img.shields.io/badge/version-3.0.0--rc.8-orange.svg)](#changelog)
 
 **🔥 Designed exclusively for Rooted Android Devices with Termux**
 
@@ -341,7 +341,42 @@ Validation generates:
 
 ## 📋 Changelog
 
-### v3.0.0-rc.6 (Current)
+### v3.0.0-rc.8 (Current)
+
+**Critical Validator & Security Fixes:**
+- Fixed Git provenance: Now uses command-scoped `safe.directory` (read-only, no repository mutation)
+- Provenance captured at START and END of validation, fails if SHA or worktree changes
+- Fixed JSON generation security: Data passed via environment variables, not interpolated into Python source
+- Fixed controller cleanup: Now verifies daemon termination with `kill -0` checks, uses `kill -9` if needed
+- Fixed BSSID validation: Normalized once upfront, validated format before use
+- Added proper error handling for empty JSON generation
+- Validation now requires clean worktree at both start and end
+
+**Known Limitations:**
+- Phase 5 validation performs framework smoke tests only (not live WPS transactions)
+- Phase 7 measures PIN generation performance, not sustained stress testing
+- Phase 8 tests session reload, not crash recovery or comprehensive cleanup paths
+- Controller cleanup verification is Linux-only (kill -0 not available on all platforms)
+
+### v3.0.0-rc.7
+
+**Release Candidate 7:**
+- Git provenance: Mandatory full SHA tracking (was attempting mutation with safe.directory)
+- Version centralization: `wifit.py` imports from `wifit_core.__version__`
+- Controller exception safety: Wrapped `WPASupplicantController.start()` with try/except cleanup
+- 22 new controller tests covering all terminal paths (PIN, null-PIN, PBC, cleanup)
+- Fixed test failures on Linux CI:
+  - Mock socket exhaustion (StopIteration) - added `socket.timeout()` after event responses
+  - M-message event format - changed to "WPS-M5D" (actual wpa_supplicant format)
+  - BSSID normalization - tests expect uppercase (normalize_bssid uppercases)
+- All 125 tests passing on Linux CI (79.93% coverage)
+
+**Known Issues (fixed in rc.8):**
+- Validator aborts after Phase 8 summary (Git provenance collection fails)
+- JSON generation interpolates BSSID/Git data into Python source (injection risk)
+- Controller cleanup doesn't verify daemon termination
+
+### v3.0.0-rc.6
 
 **Release Blockers Fixed:**
 - Fixed PBC timeout clock mismatch (monotonic vs wall time)

@@ -208,14 +208,32 @@ class WPASupplicantController:
                 pass
             self._socket = None
 
-        # Kill process if still running
+        # Kill process if still running and verify termination
         if self._ctrl_dir:
             pid_file = self._ctrl_dir / "wpas.pid"
             if pid_file.exists():
                 try:
                     pid = int(pid_file.read_text())
+                    # Send SIGTERM
                     self.runner.run(["kill", str(pid)], timeout=2.0)
+
+                    # Verify termination by checking if process still exists
+                    # On Linux, kill -0 checks if process exists without sending signal
+                    for attempt in range(10):  # Wait up to 1 second
+                        check_result = self.runner.run(["kill", "-0", str(pid)], timeout=1.0)
+                        if not check_result.ok:
+                            # Process no longer exists (kill -0 failed)
+                            break
+                        time.sleep(0.1)
+                    else:
+                        # Process still exists after 1 second, force kill
+                        self.runner.run(["kill", "-9", str(pid)], timeout=2.0)
+
+                except (ValueError, FileNotFoundError):
+                    # PID file missing or invalid - process may already be gone
+                    pass
                 except Exception:
+                    # Other errors during kill (process may already be gone)
                     pass
 
         # Cleanup temp directory
