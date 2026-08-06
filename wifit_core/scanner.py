@@ -380,7 +380,7 @@ class WiFiScanner:
         if command_runner is not None and runner is not None:
             raise ValueError("pass command_runner or runner, not both")
         if command_runner is not None:
-            self._command_runner = command_runner
+            self._command_runner: CommandRunner | None = command_runner
         elif runner is None:
             self._command_runner = CommandRunner(default_timeout=timeout)
         else:

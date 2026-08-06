@@ -374,8 +374,10 @@ class ProcessManager:
         if os.name == "posix":
             popen_kwargs["start_new_session"] = True
         elif os.name == "nt":  # pragma: no cover - Android is POSIX
-            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-        return subprocess.Popen(list(argv), **popen_kwargs)
+            # Type ignore: CREATE_NEW_PROCESS_GROUP is Windows-only
+            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined,unused-ignore]
+        # Type ignore: popen_kwargs dict is dynamically constructed
+        return subprocess.Popen(list(argv), **popen_kwargs)  # type: ignore[call-overload,no-any-return,unused-ignore]
 
     @staticmethod
     def _read_link(path: Path) -> str | None:
@@ -448,7 +450,8 @@ class ProcessManager:
                 prefix=f".{self.journal_path.name}.", dir=parent, text=True
             )
             try:
-                os.fchmod(descriptor, 0o600)
+                # Type ignore: fchmod is POSIX-only
+                os.fchmod(descriptor, 0o600)  # type: ignore[attr-defined]
                 with os.fdopen(descriptor, "w", encoding="utf-8") as journal:
                     json.dump(
                         self._journal_payload(),
@@ -532,9 +535,8 @@ class ProcessManager:
         self.stop()
         return self
 
-    def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
         self.restore()
-        return False
 
 
 InterferingProcessManager = ProcessManager

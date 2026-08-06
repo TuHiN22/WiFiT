@@ -156,11 +156,13 @@ class CommandRunner:
             # inherited our output pipes.
             popen_kwargs["start_new_session"] = True
         elif os.name == "nt":  # pragma: no cover - platform-specific flag
-            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            # Type ignore: CREATE_NEW_PROCESS_GROUP is Windows-only
+            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined,unused-ignore]
 
         started = time.monotonic()
         try:
-            process = subprocess.Popen(list(normalised), **popen_kwargs)
+            # Type ignore: popen_kwargs dict is dynamically constructed
+            process = subprocess.Popen(list(normalised), **popen_kwargs)  # type: ignore[call-overload]
         except FileNotFoundError as error:
             raise CommandNotFoundError(normalised, error) from error
         except OSError as error:
@@ -233,7 +235,8 @@ class CommandRunner:
             return
         try:
             if os.name == "posix":
-                os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
+                # Type ignore: killpg and SIGKILL are POSIX-only
+                os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)  # type: ignore[attr-defined]
             elif force:
                 process.kill()
             else:

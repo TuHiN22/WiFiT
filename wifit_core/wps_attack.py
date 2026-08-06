@@ -160,7 +160,8 @@ class WPASupplicantController:
             )
 
         # Connect control socket
-        self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        # Type ignore: AF_UNIX is POSIX-only (Unix domain sockets)
+        self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)  # type: ignore[attr-defined]
         self._socket.settimeout(_WPA_SUPPLICANT_CTRL_TIMEOUT)
 
         # Bind to temporary client socket

@@ -74,7 +74,8 @@ def parse_iw_dev(output: str) -> tuple[WirelessInterface, ...]:
     def finish() -> None:
         nonlocal current
         if current is not None:
-            interfaces.append(WirelessInterface(**current))
+            # Type ignore: dict is validated to have correct structure
+            interfaces.append(WirelessInterface(**current))  # type: ignore[arg-type]
             current = None
 
     for raw_line in output.splitlines():
@@ -463,9 +464,8 @@ class PlatformManager:
         self.prepare()
         return self
 
-    def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
         self.restore()
-        return False
 
 
 WirelessPlatform = PlatformManager
