@@ -220,11 +220,54 @@ log_info "Passed Phases: $PASSED_PHASES / $TOTAL_PHASES"
 log_info "Validation completed at $(date)"
 log_info "Full log saved to: $MASTER_LOG"
 
-# Get dynamic version and Git information
+# Get dynamic version
 WIFIT_VERSION=$(python3 -c "from wifit_core import __version__; print(__version__)" 2>/dev/null || echo "unknown")
-GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-GIT_DIRTY=$(git diff --quiet 2>/dev/null || echo "-dirty")
+
+# Configure Git to trust the repository if needed (Termux root context)
+git config --local --add safe.directory "$REPO_ROOT" 2>/dev/null || true
+
+# Get full Git provenance with explicit repository context
+cd "$REPO_ROOT" || {
+    log_error "Cannot access repository root: $REPO_ROOT"
+    exit 2
+}
+
+# Full 40-character commit SHA
+GIT_COMMIT_FULL=$(git rev-parse HEAD 2>/dev/null)
+if [[ -z "$GIT_COMMIT_FULL" ]]; then
+    log_error "BLOCKER: Cannot determine commit SHA. Git provenance is mandatory."
+    log_error "This validation run cannot be tied to a reproducible commit."
+    exit 2
+fi
+
+# Short SHA for display
+GIT_COMMIT_SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+# Branch or detached HEAD
+GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [[ "$GIT_BRANCH" == "HEAD" ]]; then
+    GIT_BRANCH="detached"
+fi
+
+# Exact tag if present
+GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+
+# Complete dirty status (working tree + index + untracked)
+GIT_STATUS_PORCELAIN=$(git status --porcelain 2>/dev/null)
+if [[ -z "$GIT_STATUS_PORCELAIN" ]]; then
+    GIT_CLEAN="true"
+    GIT_DIRTY=""
+else
+    GIT_CLEAN="false"
+    GIT_DIRTY="-dirty"
+fi
+
+log_info "Git Provenance:"
+log_info "  Commit (full): $GIT_COMMIT_FULL"
+log_info "  Commit (short): $GIT_COMMIT_SHORT"
+log_info "  Branch: $GIT_BRANCH"
+log_info "  Tag: ${GIT_TAG:-none}"
+log_info "  Clean: $GIT_CLEAN"
 
 # Compute overall status (must pass ALL 8 phases)
 if [[ $PASSED_PHASES -eq $TOTAL_PHASES ]]; then
@@ -248,9 +291,15 @@ data = {
     "validation_run": {
         "timestamp": "$TIMESTAMP",
         "target_bssid": "$TEST_BSSID",
-        "wifit_version": "$WIFIT_VERSION",
+        "wifit_version": "$WIFIT_VERSION"
+    },
+    "git_provenance": {
+        "commit_full": "$GIT_COMMIT_FULL",
+        "commit_short": "$GIT_COMMIT_SHORT",
         "branch": "$GIT_BRANCH",
-        "commit": "$GIT_COMMIT$GIT_DIRTY"
+        "tag": "${GIT_TAG:-}",
+        "clean": $GIT_CLEAN,
+        "status_porcelain": """$GIT_STATUS_PORCELAIN"""
     },
     "phases": {
 $(for phase in {1..8}; do

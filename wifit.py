@@ -2,11 +2,12 @@
 """
 WiFiT - Professional WPS Penetration Testing Tool
 Author: TuHiN
-Version: 3.0.0-rc.5
 
 Designed for Rooted Android Devices with Termux
 A hybrid WiFi hacking tool combining the best features from multiple sources.
 """
+
+from wifit_core import __version__
 
 import codecs
 import collections
@@ -611,7 +612,7 @@ def show_wifit_banner():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     banner = f"""
 \033[1;36m╔══════════════════════════════════════════════════════════════╗
-║                   🛡️  WiFiT v3.0.0-rc.5                     ║
+║                   🛡️  WiFiT v{__version__:<27}║
 ║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╠══════════════════════════════════════════════════════════════╣
