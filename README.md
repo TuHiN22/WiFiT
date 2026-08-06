@@ -4,7 +4,7 @@
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                   🛡️  WiFiT v3.0.0-rc.8                     ║
+║                   🛡️  WiFiT v3.0.0-rc.9                     ║
 ║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -14,7 +14,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Rooted%20Android%20%2B%20Termux-brightgreen.svg)](https://github.com/TuHiN22/WiFiT)
 [![Root Required](https://img.shields.io/badge/root-required-red.svg)](https://magisk.me/)
-[![Version](https://img.shields.io/badge/version-3.0.0--rc.8-orange.svg)](#changelog)
+[![Version](https://img.shields.io/badge/version-3.0.0--rc.9-orange.svg)](#changelog)
 
 **🔥 Designed exclusively for Rooted Android Devices with Termux**
 
@@ -341,7 +341,36 @@ Validation generates:
 
 ## 📋 Changelog
 
-### v3.0.0-rc.8 (Current)
+### v3.0.0-rc.9 (Current)
+
+**Critical Provenance Improvements:**
+- Git provenance now fail-closed: All git commands must succeed or validation aborts
+- Comprehensive start/end comparison: SHA, branch, detached state, tag, version, worktree
+- Version import explicitly from REPO_ROOT (prevents PATH pollution)
+- Git detached HEAD state tracked and compared
+- Full provenance in JSON: commit_full, commit_short, branch, detached, tag, clean status
+- Full provenance in HTML report: All git metadata displayed including full SHA
+
+**JSON/HTML Enhancements:**
+- JSON includes detached HEAD boolean
+- HTML displays Git Provenance section with all metadata
+- HTML shows full 40-character SHA (not just short)
+- HTML shows clean/dirty worktree status
+
+**Version Verification:**
+- WiFiT version captured at validation start
+- WiFiT version compared at validation end
+- Version mismatch fails validation (prevents code changes during run)
+
+**Fail-Closed Security:**
+- Git status failure now blocks validation (was: treated as clean)
+- Git branch query failure blocks validation
+- Git SHA query failure blocks validation
+- Version query failure blocks validation
+
+All git and version checks are now mandatory with explicit error messages.
+
+### v3.0.0-rc.8
 
 **Critical Validator & Security Fixes:**
 - Fixed Git provenance: Now uses command-scoped `safe.directory` (read-only, no repository mutation)

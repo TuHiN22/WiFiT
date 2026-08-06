@@ -136,27 +136,43 @@ log_info "Normalized BSSID: $TEST_BSSID"
 collect_git_provenance() {
     local phase="$1"  # "start" or "end"
 
-    # Full 40-character commit SHA (command-scoped safe.directory)
-    if ! GIT_COMMIT_FULL=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null); then
+    # Full 40-character commit SHA (command-scoped safe.directory, fail-closed)
+    if ! GIT_COMMIT_FULL=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse HEAD 2>&1); then
         log_error "BLOCKER: Cannot determine commit SHA at validation $phase."
         log_error "Git provenance is mandatory. This validation cannot be tied to a reproducible commit."
+        log_error "Git error: $GIT_COMMIT_FULL"
         exit 2
     fi
 
     # Short SHA for display
-    GIT_COMMIT_SHORT=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-
-    # Branch or detached HEAD
-    GIT_BRANCH=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-    if [[ "$GIT_BRANCH" == "HEAD" ]]; then
-        GIT_BRANCH="detached"
+    if ! GIT_COMMIT_SHORT=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --short HEAD 2>&1); then
+        log_error "BLOCKER: Cannot determine short commit SHA at validation $phase."
+        exit 2
     fi
 
-    # Exact tag if present
+    # Branch or detached HEAD
+    if ! GIT_BRANCH=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>&1); then
+        log_error "BLOCKER: Cannot determine branch state at validation $phase."
+        exit 2
+    fi
+    if [[ "$GIT_BRANCH" == "HEAD" ]]; then
+        GIT_BRANCH="detached"
+        GIT_DETACHED="true"
+    else
+        GIT_DETACHED="false"
+    fi
+
+    # Exact tag if present (non-fatal if not on a tag)
     GIT_TAG=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" describe --tags --exact-match 2>/dev/null || echo "")
 
-    # Complete dirty status (working tree + index + untracked)
-    GIT_STATUS_PORCELAIN=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" status --porcelain 2>/dev/null || echo "")
+    # Complete dirty status (working tree + index + untracked) - FAIL-CLOSED
+    if ! GIT_STATUS_PORCELAIN=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" status --porcelain 2>&1); then
+        log_error "BLOCKER: Cannot determine repository status at validation $phase."
+        log_error "Git provenance is mandatory."
+        log_error "Git error: $GIT_STATUS_PORCELAIN"
+        exit 2
+    fi
+
     if [[ -z "$GIT_STATUS_PORCELAIN" ]]; then
         GIT_CLEAN="true"
         GIT_DIRTY=""
@@ -168,6 +184,10 @@ collect_git_provenance() {
     # Export for comparison between start/end
     if [[ "$phase" == "start" ]]; then
         export GIT_COMMIT_FULL_START="$GIT_COMMIT_FULL"
+        export GIT_COMMIT_SHORT_START="$GIT_COMMIT_SHORT"
+        export GIT_BRANCH_START="$GIT_BRANCH"
+        export GIT_DETACHED_START="$GIT_DETACHED"
+        export GIT_TAG_START="$GIT_TAG"
         export GIT_CLEAN_START="$GIT_CLEAN"
         export GIT_STATUS_START="$GIT_STATUS_PORCELAIN"
 
@@ -175,6 +195,7 @@ collect_git_provenance() {
         log_info "  Commit (full): $GIT_COMMIT_FULL"
         log_info "  Commit (short): $GIT_COMMIT_SHORT"
         log_info "  Branch: $GIT_BRANCH"
+        log_info "  Detached: $GIT_DETACHED"
         log_info "  Tag: ${GIT_TAG:-none}"
         log_info "  Clean: $GIT_CLEAN"
 
@@ -196,6 +217,30 @@ collect_git_provenance() {
             exit 2
         fi
 
+        if [[ "$GIT_BRANCH" != "$GIT_BRANCH_START" ]]; then
+            log_error "BLOCKER: Git branch changed during validation!"
+            log_error "  Start: $GIT_BRANCH_START"
+            log_error "  End:   $GIT_BRANCH"
+            log_error "Validation results are invalid - branch state changed."
+            exit 2
+        fi
+
+        if [[ "$GIT_DETACHED" != "$GIT_DETACHED_START" ]]; then
+            log_error "BLOCKER: Git detached state changed during validation!"
+            log_error "  Start: detached=$GIT_DETACHED_START"
+            log_error "  End:   detached=$GIT_DETACHED"
+            log_error "Validation results are invalid - HEAD attachment changed."
+            exit 2
+        fi
+
+        if [[ "$GIT_TAG" != "$GIT_TAG_START" ]]; then
+            log_error "BLOCKER: Git tag changed during validation!"
+            log_error "  Start: ${GIT_TAG_START:-none}"
+            log_error "  End:   ${GIT_TAG:-none}"
+            log_error "Validation results are invalid - tag changed."
+            exit 2
+        fi
+
         if [[ "$GIT_CLEAN" != "$GIT_CLEAN_START" ]]; then
             log_error "BLOCKER: Worktree state changed during validation!"
             log_error "  Start: clean=$GIT_CLEAN_START"
@@ -210,12 +255,28 @@ collect_git_provenance() {
 
         log_info "Git Provenance (validation end):"
         log_info "  Commit: $GIT_COMMIT_FULL (unchanged ✓)"
+        log_info "  Branch: $GIT_BRANCH (unchanged ✓)"
+        log_info "  Detached: $GIT_DETACHED (unchanged ✓)"
+        log_info "  Tag: ${GIT_TAG:-none} (unchanged ✓)"
         log_info "  Worktree: clean (unchanged ✓)"
     fi
 }
 
-# Get dynamic version
-WIFIT_VERSION=$(python3 -c "from wifit_core import __version__; print(__version__)" 2>/dev/null || echo "unknown")
+# Get dynamic version from REPO_ROOT explicitly
+cd "$REPO_ROOT" || {
+    log_error "Cannot access repository root: $REPO_ROOT"
+    exit 2
+}
+
+if ! WIFIT_VERSION=$(python3 -c "import sys; sys.path.insert(0, '.'); from wifit_core import __version__; print(__version__)" 2>&1); then
+    log_error "BLOCKER: Cannot determine WiFiT version at validation start."
+    log_error "Version provenance is mandatory."
+    log_error "Python error: $WIFIT_VERSION"
+    exit 2
+fi
+
+export WIFIT_VERSION_START="$WIFIT_VERSION"
+log_info "WiFiT Version: $WIFIT_VERSION"
 
 # Collect provenance at START (before Phase 1)
 collect_git_provenance "start"
@@ -300,6 +361,28 @@ fi
 # Phase 8: Recovery & Cleanup
 run_phase 8 "Recovery & Cleanup" "08_test_recovery.sh" "$TEST_BSSID" || true
 
+# Verify version hasn't changed during validation
+cd "$REPO_ROOT" || {
+    log_error "Cannot access repository root: $REPO_ROOT"
+    exit 2
+}
+
+if ! WIFIT_VERSION_END=$(python3 -c "import sys; sys.path.insert(0, '.'); from wifit_core import __version__; print(__version__)" 2>&1); then
+    log_error "BLOCKER: Cannot determine WiFiT version at validation end."
+    log_error "Python error: $WIFIT_VERSION_END"
+    exit 2
+fi
+
+if [[ "$WIFIT_VERSION_END" != "$WIFIT_VERSION_START" ]]; then
+    log_error "BLOCKER: WiFiT version changed during validation!"
+    log_error "  Start: $WIFIT_VERSION_START"
+    log_error "  End:   $WIFIT_VERSION_END"
+    log_error "Validation results are invalid - version changed."
+    exit 2
+fi
+
+log_info "WiFiT Version: $WIFIT_VERSION_END (unchanged ✓)"
+
 # Collect provenance at END (after Phase 8) to detect any changes
 collect_git_provenance "end"
 
@@ -360,6 +443,7 @@ export JSON_WIFIT_VERSION="$WIFIT_VERSION"
 export JSON_GIT_COMMIT_FULL="$GIT_COMMIT_FULL"
 export JSON_GIT_COMMIT_SHORT="$GIT_COMMIT_SHORT"
 export JSON_GIT_BRANCH="$GIT_BRANCH"
+export JSON_GIT_DETACHED="$GIT_DETACHED"
 export JSON_GIT_TAG="$GIT_TAG"
 export JSON_GIT_CLEAN="$GIT_CLEAN"
 export JSON_GIT_STATUS_PORCELAIN="$GIT_STATUS_PORCELAIN"
@@ -385,6 +469,7 @@ data = {
         "commit_full": os.environ.get("JSON_GIT_COMMIT_FULL", ""),
         "commit_short": os.environ.get("JSON_GIT_COMMIT_SHORT", ""),
         "branch": os.environ.get("JSON_GIT_BRANCH", ""),
+        "detached": os.environ.get("JSON_GIT_DETACHED", "") == "true",
         "tag": os.environ.get("JSON_GIT_TAG", ""),
         "clean": os.environ.get("JSON_GIT_CLEAN", "") == "true",
         "status_porcelain": os.environ.get("JSON_GIT_STATUS_PORCELAIN", "")

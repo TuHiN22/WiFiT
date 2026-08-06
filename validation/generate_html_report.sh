@@ -109,6 +109,7 @@ with open(summary_file, encoding="utf-8") as source:
     data = json.load(source)
 
 validation_run = data["validation_run"]
+git_provenance = data["git_provenance"]
 summary = data["summary"]
 phases = data["phases"]
 
@@ -126,6 +127,18 @@ print(
     f'<p><strong>Phases Passed:</strong> '
     f'{escape(summary["passed"])} / {escape(summary["total_phases"])}</p>'
 )
+print('</div>')
+
+print('<div class="summary">')
+print('<h2>Git Provenance</h2>')
+print(f'<p><strong>Commit (full):</strong> <code>{escape(git_provenance["commit_full"])}</code></p>')
+print(f'<p><strong>Commit (short):</strong> <code>{escape(git_provenance["commit_short"])}</code></p>')
+print(f'<p><strong>Branch:</strong> {escape(git_provenance["branch"])}</p>')
+print(f'<p><strong>Detached HEAD:</strong> {escape(git_provenance.get("detached", False))}</p>')
+tag_display = git_provenance["tag"] if git_provenance["tag"] else "none"
+print(f'<p><strong>Tag:</strong> {escape(tag_display)}</p>')
+clean_display = "✓ clean" if git_provenance["clean"] else "✗ dirty"
+print(f'<p><strong>Worktree:</strong> {escape(clean_display)}</p>')
 print('</div>')
 
 phase_names = {
