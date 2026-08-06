@@ -450,7 +450,6 @@ class ProcessManager:
                 prefix=f".{self.journal_path.name}.", dir=parent, text=True
             )
             try:
-                # Type ignore: fchmod is POSIX-only
                 os.fchmod(descriptor, 0o600)  # type: ignore[attr-defined]
                 with os.fdopen(descriptor, "w", encoding="utf-8") as journal:
                     json.dump(

@@ -217,7 +217,6 @@ class BruteforceSession:
             text=True,
         )
         try:
-            # Type ignore: fchmod is POSIX-only
             os.fchmod(descriptor, 0o600)  # type: ignore[attr-defined]
         except (OSError, AttributeError):
             # Windows doesn't support fchmod

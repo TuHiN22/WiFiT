@@ -235,7 +235,6 @@ class CommandRunner:
             return
         try:
             if os.name == "posix":
-                # Type ignore: killpg and SIGKILL are POSIX-only
                 os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)  # type: ignore[attr-defined]
             elif force:
                 process.kill()

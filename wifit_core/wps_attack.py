@@ -159,8 +159,7 @@ class WPASupplicantController:
                 f"wpa_supplicant control socket not found: {self._ctrl_socket_path}"
             )
 
-        # Connect control socket
-        # Type ignore: AF_UNIX is POSIX-only (Unix domain sockets)
+        # Connect control socket (Unix domain socket)
         self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)  # type: ignore[attr-defined]
         self._socket.settimeout(_WPA_SUPPLICANT_CTRL_TIMEOUT)
 
