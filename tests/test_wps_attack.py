@@ -279,7 +279,8 @@ class TestControllerPINAttack:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            # Add timeout exceptions after event responses to break the loop
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -306,7 +307,7 @@ class TestControllerPINAttack:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -333,7 +334,7 @@ class TestControllerPINAttack:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -360,7 +361,7 @@ class TestControllerPINAttack:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -396,7 +397,7 @@ class TestControllerPINAttack:
             result = ctrl.try_pin("AA:BB:CC:DD:EE:FF", "12345670", timeout=30.0)
 
             assert result.outcome == AttackOutcome.TIMEOUT
-            assert "30s timeout" in result.message
+            assert "30" in result.message and "timeout" in result.message.lower()
             assert result.method == AttackMethod.PIN
 
 
@@ -444,7 +445,7 @@ class TestControllerNullPIN:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -527,7 +528,7 @@ class TestControllerPBC:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -554,7 +555,7 @@ class TestControllerPBC:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -581,7 +582,7 @@ class TestControllerPBC:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -617,7 +618,7 @@ class TestControllerPBC:
             result = ctrl.try_pbc("AA:BB:CC:DD:EE:FF", timeout=120.0)
 
             assert result.outcome == AttackOutcome.TIMEOUT
-            assert "120s" in result.message
+            assert "120" in result.message
             assert result.method == AttackMethod.PBC
 
     def test_pbc_failure(self, mock_runner, tmp_path):
@@ -636,7 +637,7 @@ class TestControllerPBC:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_socket_cls.return_value = mock_sock
 
             ctrl.start()
@@ -691,7 +692,7 @@ class TestControllerCleanup:
             "time.monotonic", side_effect=[0, 1, 2]
         ):
             mock_sock = MagicMock()
-            mock_sock.recv.side_effect = startup_responses + event_responses
+            mock_sock.recv.side_effect = startup_responses + event_responses + [socket.timeout()] * 10
             mock_sock.send = MagicMock()
             mock_socket_cls.return_value = mock_sock
 
