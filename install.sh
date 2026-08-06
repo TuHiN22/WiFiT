@@ -2,7 +2,7 @@
 #
 # WiFiT Installation Script
 # Author: TuHiN
-# Version: 3.0.0-rc.1
+# Version: 3.0.0-rc.9
 # Platform: Rooted Android + Termux
 # GitHub: https://github.com/TuHiN22/WiFiT
 #
@@ -20,7 +20,7 @@ show_banner() {
     clear
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║              WiFiT Installer v3.0.0-rc.1                    ║"
+    echo "║              WiFiT Installer v3.0.0-rc.9                    ║"
     echo "║         Professional WPS Testing Toolkit for Termux         ║"
     echo "║                      Author: TuHiN                           ║"
     echo "╚══════════════════════════════════════════════════════════════╝"

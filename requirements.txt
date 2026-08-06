@@ -1,4 +1,4 @@
-# WiFiT v3.0.0-rc.1 Runtime Dependencies
+# WiFiT v3.0.0-rc.9 Runtime Dependencies
 #
 # WiFiT has zero mandatory runtime dependencies for core functionality.
 # All operations use only Python standard library and system tools (iw, wpa_supplicant, etc.)

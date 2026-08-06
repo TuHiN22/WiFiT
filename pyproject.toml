@@ -68,7 +68,7 @@ Homepage = "https://github.com/TuHiN22/WiFiT"
 Documentation = "https://github.com/TuHiN22/WiFiT/blob/master/README.md"
 Repository = "https://github.com/TuHiN22/WiFiT"
 Issues = "https://github.com/TuHiN22/WiFiT/issues"
-Changelog = "https://github.com/TuHiN22/WiFiT/blob/master/CHANGELOG.md"
+Changelog = "https://github.com/TuHiN22/WiFiT/blob/master/README.md#changelog"
 
 [project.scripts]
 wifit = "wifit:main"

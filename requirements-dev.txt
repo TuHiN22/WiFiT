@@ -1,4 +1,4 @@
-# WiFiT v3.0.0-rc.1 Development Dependencies
+# WiFiT v3.0.0-rc.9 Development Dependencies
 
 # Testing
 pytest>=7.4.0
