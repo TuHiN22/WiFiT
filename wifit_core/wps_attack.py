@@ -110,80 +110,90 @@ class WPASupplicantController:
         self.stop()
 
     def start(self) -> None:
-        """Launch wpa_supplicant with control interface."""
+        """Launch wpa_supplicant with control interface.
+        
+        Exception-safe: If startup fails at any point, cleanup is automatically
+        performed before re-raising the exception.
+        """
         if self._socket is not None:
             return  # Already started
 
-        # Create temporary control directory
-        self._ctrl_dir = Path(tempfile.mkdtemp(prefix="wifit_wpas_"))
+        try:
+            # Create temporary control directory
+            self._ctrl_dir = Path(tempfile.mkdtemp(prefix="wifit_wpas_"))
 
-        # Create minimal wpa_supplicant config
-        config_path = self._ctrl_dir / "wpa_supplicant.conf"
-        config_path.write_text(
-            "ctrl_interface=" + str(self._ctrl_dir) + "\n"
-            "ap_scan=1\n"
-            "device_name=WiFiT\n"
-            "device_type=6-0050F204-1\n"
-            "config_methods=label virtual_display virtual_push_button keypad\n"
-            "wps_cred_processing=2\n",
-            encoding="utf-8",
-        )
-
-        # Launch wpa_supplicant
-        cmd = [
-            "wpa_supplicant",
-            "-i",
-            self.interface,
-            "-c",
-            str(config_path),
-            "-B",  # Background
-            "-P",
-            str(self._ctrl_dir / "wpas.pid"),
-        ]
-
-        if self.debug:
-            cmd.extend(["-dd", "-f", str(self._ctrl_dir / "wpas.log")])
-
-        result = self.runner.run(cmd, timeout=5.0)
-        if not result.ok:
-            raise WPSAttackError(f"Failed to start wpa_supplicant: {result.stderr}")
-
-        # Wait for control socket
-        self._ctrl_socket_path = self._ctrl_dir / self.interface
-        for _ in range(20):  # Wait up to 2 seconds
-            if self._ctrl_socket_path.exists():
-                break
-            time.sleep(0.1)
-        else:
-            raise WPSAttackError(
-                f"wpa_supplicant control socket not found: {self._ctrl_socket_path}"
+            # Create minimal wpa_supplicant config
+            config_path = self._ctrl_dir / "wpa_supplicant.conf"
+            config_path.write_text(
+                "ctrl_interface=" + str(self._ctrl_dir) + "\n"
+                "ap_scan=1\n"
+                "device_name=WiFiT\n"
+                "device_type=6-0050F204-1\n"
+                "config_methods=label virtual_display virtual_push_button keypad\n"
+                "wps_cred_processing=2\n",
+                encoding="utf-8",
             )
 
-        # Connect control socket (Unix domain socket)
-        self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)  # type: ignore[attr-defined]
-        self._socket.settimeout(_WPA_SUPPLICANT_CTRL_TIMEOUT)
+            # Launch wpa_supplicant
+            cmd = [
+                "wpa_supplicant",
+                "-i",
+                self.interface,
+                "-c",
+                str(config_path),
+                "-B",  # Background
+                "-P",
+                str(self._ctrl_dir / "wpas.pid"),
+            ]
 
-        # Bind to temporary client socket
-        client_socket = self._ctrl_dir / f"wifit_{os.getpid()}.sock"
-        try:
-            self._socket.bind(str(client_socket))
-        except OSError as e:
-            raise WPSAttackError(f"Failed to bind client socket: {e}")
+            if self.debug:
+                cmd.extend(["-dd", "-f", str(self._ctrl_dir / "wpas.log")])
 
-        try:
-            self._socket.connect(str(self._ctrl_socket_path))
-        except OSError as e:
-            raise WPSAttackError(f"Failed to connect to wpa_supplicant: {e}")
+            result = self.runner.run(cmd, timeout=5.0)
+            if not result.ok:
+                raise WPSAttackError(f"Failed to start wpa_supplicant: {result.stderr}")
 
-        # Verify connection
-        response = self._send_command("PING")
-        if response != "PONG":
-            raise WPSAttackError(f"wpa_supplicant PING failed: {response}")
+            # Wait for control socket
+            self._ctrl_socket_path = self._ctrl_dir / self.interface
+            for _ in range(20):  # Wait up to 2 seconds
+                if self._ctrl_socket_path.exists():
+                    break
+                time.sleep(0.1)
+            else:
+                raise WPSAttackError(
+                    f"wpa_supplicant control socket not found: {self._ctrl_socket_path}"
+                )
 
-        # Attach to receive unsolicited events
-        response = self._send_command("ATTACH")
-        if "OK" not in response:
-            raise WPSAttackError(f"wpa_supplicant ATTACH failed: {response}")
+            # Connect control socket (Unix domain socket)
+            self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)  # type: ignore[attr-defined]
+            self._socket.settimeout(_WPA_SUPPLICANT_CTRL_TIMEOUT)
+
+            # Bind to temporary client socket
+            client_socket = self._ctrl_dir / f"wifit_{os.getpid()}.sock"
+            try:
+                self._socket.bind(str(client_socket))
+            except OSError as e:
+                raise WPSAttackError(f"Failed to bind client socket: {e}")
+
+            try:
+                self._socket.connect(str(self._ctrl_socket_path))
+            except OSError as e:
+                raise WPSAttackError(f"Failed to connect to wpa_supplicant: {e}")
+
+            # Verify connection
+            response = self._send_command("PING")
+            if response != "PONG":
+                raise WPSAttackError(f"wpa_supplicant PING failed: {response}")
+
+            # Attach to receive unsolicited events
+            response = self._send_command("ATTACH")
+            if "OK" not in response:
+                raise WPSAttackError(f"wpa_supplicant ATTACH failed: {response}")
+                
+        except Exception:
+            # Cleanup partial state before re-raising
+            self.stop()
+            raise
 
     def stop(self) -> None:
         """Terminate wpa_supplicant and cleanup."""
