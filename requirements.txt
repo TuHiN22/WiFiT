@@ -1,0 +1,8 @@
+# WiFiT v3.0.0 Runtime Dependencies
+#
+# WiFiT has zero mandatory runtime dependencies for core functionality.
+# All operations use only Python standard library and system tools (iw, wpa_supplicant, etc.)
+#
+# Optional dependencies for enhanced display:
+# pyfiglet>=0.8.0  # ASCII art banners (optional, gracefully degraded if missing)
+# psutil>=5.9.0    # System information (optional, not required for core attacks)

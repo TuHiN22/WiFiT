@@ -1,0 +1,20 @@
+# Exact WSC model/device fingerprints derived from the GPL-licensed
+# OneShot-Extended vulnerable WSC list. Keep entries specific: matching is
+# normalized but never substring-based.
+MI424-WR Rev.E
+WLAN 1421
+Vodafone Easybox 602
+Vodafone EasyBox 802
+Speedport W 504V Typ A
+EasyBox 803
+RT-N16
+RT-N10
+Fritz!box 7390
+Fritz!Box 7240
+Fritz!Box WLAN 3370
+TP-Link TL-MR3420 5.0
+TP-Link TL-MR6400 4.0
+TP-Link TL-WR840N 6.0
+TP-Link TL-WR841N 14.0
+TP-Link TL-WR845N 4.0
+TP-Link TL-WR850N 3.0

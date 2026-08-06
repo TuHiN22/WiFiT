@@ -4,22 +4,23 @@
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                    🛡️  WiFiT v2.0.0                         ║
+║                   🛡️  WiFiT v3.0.0                          ║
 ║         Professional WPS Testing Toolkit for Termux          ║
 ║                      Author: TuHiN                           ║
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
-[![Python Version](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Rooted%20Android%20%2B%20Termux-brightgreen.svg)](https://github.com/TuHiN22/WiFiT)
 [![Root Required](https://img.shields.io/badge/root-required-red.svg)](https://magisk.me/)
+[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)](#changelog)
 
 **🔥 Designed exclusively for Rooted Android Devices with Termux**
 
 **A powerful hybrid WiFi penetration testing tool combining advanced WPS attack methods**
 
-[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Legal](#%EF%B8%8F-legal-disclaimer)
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Validation](#-validation-procedure) • [Legal](#%EF%B8%8F-legal-disclaimer)
 
 </div>
 
@@ -100,7 +101,7 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
 - **Device**: Rooted Android device
 - **Root Method**: Magisk or KernelSU
 - **Termux**: Latest version from F-Droid
-- **Python**: 3.6 or higher
+- **Python**: 3.10 or higher
 - **Root Access**: Required for WiFi operations
 
 ### Root Setup
@@ -117,10 +118,13 @@ WiFiT is a professional WPS (Wi-Fi Protected Setup) penetration testing toolkit 
 ### Dependencies
 
 **Termux Packages:**
-- `python3` - Python interpreter
+- `python` - Python interpreter (`python`/`python3` commands)
 - `tsu` - Termux superuser utility
 - `root-repo` - Root-related packages
-- `wireless-tools` - WiFi utilities
+- `iproute2` - Interface state and link management (`ip`)
+- `iw` - Modern wireless interface and scan control
+- `wpa-supplicant` - WPS enrollee and control interface
+- `pixiewps` - Pixie Dust PIN recovery engine
 
 **Python Packages (Optional):**
 - `pyfiglet` - ASCII art banners
@@ -290,6 +294,207 @@ WiFiT/
 [+] Saved → reports/WiFiT_saved_data.txt
 [i] Credentials saved to reports/WiFiT_Results.txt, reports/stored.csv
 ```
+
+---
+
+## 🧪 Validation Procedure
+
+WiFiT includes a comprehensive hardware validation suite that must pass all 8 phases before stable release.
+
+### Running Validation
+
+```bash
+# Navigate to WiFiT directory
+cd WiFiT
+
+# Run full validation suite (requires root and test AP)
+sudo bash validation/run_all_validation.sh AA:BB:CC:DD:EE:FF
+```
+
+### Validation Phases
+
+1. **Environment Setup** - Verifies dependencies, root access, and interface availability
+2. **Scanner Validation** - Tests network scanning and WPS detection
+3. **PIN Generation** - Validates MAC-based PIN algorithms
+4. **Process Management** - Tests wpa_supplicant lifecycle and control
+5. **WPS Attack Framework** - Validates attack methods (framework smoke test)
+6. **Reporter Validation** - Tests result export and credential storage
+7. **PIN Generation Stress** - Generates 1000 PINs to verify algorithm performance
+8. **Recovery & Cleanup** - Tests session reload and cleanup procedures
+
+### Validation Limitations
+
+- **Phase 5** performs framework smoke tests only; live WPS transactions must be tested manually with authorized APs
+- **Phase 7** measures PIN generation performance, not sustained attack stress
+- **Phase 8** tests session reload, not crash recovery or process cleanup
+- Strong signal (-60 dBm or better) recommended for eventual live validation
+- All validation must be performed on networks you own or have written authorization to test
+
+### Output
+
+Validation generates:
+- `validation_logs/master_run_YYYYMMDD_HHMMSS.log` - Complete timestamped log
+- `validation_logs/validation_summary_YYYYMMDD_HHMMSS.json` - Machine-readable results
+- `validation_logs/validation_report_YYYYMMDD_HHMMSS.html` - Formatted HTML report
+
+---
+
+## 📋 Changelog
+
+### v3.0.0 (Current - Stable Release)
+
+**Professional WPS Testing Toolkit - Stable Release**
+
+Complete rewrite with production-grade architecture and comprehensive validation.
+
+**Core Features:**
+- Professional WPS attack framework via wpa_supplicant control interface
+- Validated PIN/null-PIN/empty-PIN/zero-PIN/PBC attack methods
+- Proper timeout handling with monotonic clocks
+- First-half PIN detection
+- Session management with resume capability
+- Comprehensive credential extraction and reporting
+
+**Provenance & Validation:**
+- Fail-closed Git provenance tracking
+- Comprehensive start/end comparison (SHA, branch, tag, version, worktree)
+- Full validation suite with 8 phases
+- Hardware validation on Termux devices
+- 125 tests with 79.93% coverage
+
+**Architecture:**
+- Modular core (`wifit_core/`) with clean separation of concerns
+- Type-annotated Python 3.10+ codebase
+- Comprehensive test coverage
+- Production-grade error handling
+- Zero mandatory runtime dependencies
+
+**Platform Support:**
+- Rooted Android devices (Magisk/KernelSU)
+- Termux terminal emulator
+- Python 3.10, 3.11, 3.12, 3.13, 3.14
+
+**Release Lineage:**
+- Based on v3.0.0-rc.9 with version updates
+- All rc.7, rc.8, rc.9 improvements included
+- Comprehensive provenance and validation fixes
+
+### v3.0.0-rc.9
+
+**Critical Provenance Improvements:**
+- Git provenance now fail-closed: All git commands must succeed or validation aborts
+- Comprehensive start/end comparison: SHA, branch, detached state, tag, version, worktree
+- Version import explicitly from REPO_ROOT (prevents PATH pollution)
+- Git detached HEAD state tracked and compared
+- Full provenance in JSON: commit_full, commit_short, branch, detached, tag, clean status
+- Full provenance in HTML report: All git metadata displayed including full SHA
+
+**JSON/HTML Enhancements:**
+- JSON includes detached HEAD boolean
+- HTML displays Git Provenance section with all metadata
+- HTML shows full 40-character SHA (not just short)
+- HTML shows clean/dirty worktree status
+
+**Version Verification:**
+- WiFiT version captured at validation start
+- WiFiT version compared at validation end
+- Version mismatch fails validation (prevents code changes during run)
+
+**Fail-Closed Security:**
+- Git status failure now blocks validation (was: treated as clean)
+- Git branch query failure blocks validation
+- Git SHA query failure blocks validation
+- Version query failure blocks validation
+
+All git and version checks are now mandatory with explicit error messages.
+
+### v3.0.0-rc.8
+
+**Critical Validator & Security Fixes:**
+- Fixed Git provenance: Now uses command-scoped `safe.directory` (read-only, no repository mutation)
+- Provenance captured at START and END of validation, fails if SHA or worktree changes
+- Fixed JSON generation security: Data passed via environment variables, not interpolated into Python source
+- Fixed controller cleanup: Now verifies daemon termination with `kill -0` checks, uses `kill -9` if needed
+- Fixed BSSID validation: Normalized once upfront, validated format before use
+- Added proper error handling for empty JSON generation
+- Validation now requires clean worktree at both start and end
+
+**Known Limitations:**
+- Phase 5 validation performs framework smoke tests only (not live WPS transactions)
+- Phase 7 measures PIN generation performance, not sustained stress testing
+- Phase 8 tests session reload, not crash recovery or comprehensive cleanup paths
+- Controller cleanup verification is Linux-only (kill -0 not available on all platforms)
+
+### v3.0.0-rc.7
+
+**Release Candidate 7:**
+- Git provenance: Mandatory full SHA tracking (was attempting mutation with safe.directory)
+- Version centralization: `wifit.py` imports from `wifit_core.__version__`
+- Controller exception safety: Wrapped `WPASupplicantController.start()` with try/except cleanup
+- 22 new controller tests covering all terminal paths (PIN, null-PIN, PBC, cleanup)
+- Fixed test failures on Linux CI:
+  - Mock socket exhaustion (StopIteration) - added `socket.timeout()` after event responses
+  - M-message event format - changed to "WPS-M5D" (actual wpa_supplicant format)
+  - BSSID normalization - tests expect uppercase (normalize_bssid uppercases)
+- All 125 tests passing on Linux CI (79.93% coverage)
+
+**Known Issues (fixed in rc.8):**
+- Validator aborts after Phase 8 summary (Git provenance collection fails)
+- JSON generation interpolates BSSID/Git data into Python source (injection risk)
+- Controller cleanup doesn't verify daemon termination
+
+### v3.0.0-rc.6
+
+**Release Blockers Fixed:**
+- Fixed PBC timeout clock mismatch (monotonic vs wall time)
+- Fixed broadcast PBC BSSID preservation (None no longer converted to "")
+- Fixed validation status logic (JSON/HTML/exit code now all require 8/8)
+- Removed hardcoded version strings from validation scripts
+- Made version/branch/commit dynamic in validation reports
+
+**Known Limitations:**
+- Phase 5 validation performs framework tests only (not live WPS transactions)
+- Controller test coverage incomplete (comprehensive tests planned for rc.7)
+
+### v3.0.0-rc.5
+
+**Validation Fixes:**
+- Fixed shell quoting in Phase 4 (removed apostrophe in error message)
+- Fixed broadcast PBC BSSID validation (removed SSID fallback)
+- Changed timeout deadlines to use `time.monotonic()` instead of `time.time()`
+- Fixed release gate to require ALL 8 phases (was accepting 6/8)
+- Made version reporting dynamic from `wifit_core.__version__`
+
+### v3.0.0-rc.4
+
+**Critical Production Fixes:**
+- Fixed missing `started_at` timestamp in ALL 15 WPS attack result paths
+- Separated wall clock (datetime) for timestamps from monotonic clock for timeouts
+- Fixed Bash counter bug in validation scripts (set -e compatibility)
+- Fixed ProcessSnapshot constructor to match current API
+- Fixed AttackResult test fixtures with consistent timestamps
+
+### v3.0.0-rc.3
+
+**RC2 Blocking Issues Fixed:**
+- Added ATTACH command to wpa_supplicant controller
+- Distinguished null PIN from empty PIN (separate methods)
+- Fixed pixiewps success detection (require PIN extraction + exit 0)
+- Corrected all validation script API calls
+- Integrated RC2 modules into wifit.py smart_bruteforce
+- Removed || true from CI quality gates
+- Fixed Windows file permission issue in BruteforceSession.save()
+
+### v3.0.0-rc.1
+
+**Initial Release Candidate:**
+- Complete rewrite with production-grade architecture
+- Proper WPS attack via wpa_supplicant control interface
+- Validated PIN/null-PIN/empty-PIN/zero-PIN/PBC methods
+- Timeout handling with first-half detection
+- Session management and credential extraction
+- Comprehensive test suite (103 tests)
+- Hardware validation framework
 
 ---
 
