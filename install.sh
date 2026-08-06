@@ -2,7 +2,7 @@
 #
 # WiFiT Installation Script
 # Author: TuHiN
-# Version: 2.0.0
+# Version: 3.0.0-rc.9
 # Platform: Rooted Android + Termux
 # GitHub: https://github.com/TuHiN22/WiFiT
 #
@@ -20,7 +20,7 @@ show_banner() {
     clear
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                 WiFiT Installer v2.0.0                      ║"
+    echo "║              WiFiT Installer v3.0.0-rc.9                    ║"
     echo "║         Professional WPS Testing Toolkit for Termux         ║"
     echo "║                      Author: TuHiN                           ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
@@ -33,7 +33,7 @@ check_termux() {
         echo -e "${GREEN}[+] Termux environment detected${NC}"
         return 0
     else
-        echo -e "${YELLOW}[!] This script is optimized for Termux${NC}"
+        echo -e "${RED}[-] This installer requires Termux${NC}"
         return 1
     fi
 }
@@ -43,16 +43,31 @@ install_dependencies_termux() {
     echo -e "${YELLOW}[*] Installing Termux dependencies...${NC}\n"
     
     echo -e "${BLUE}[*] Updating package lists...${NC}"
-    pkg update -y
-    pkg upgrade -y
+    if ! pkg update -y; then
+        echo -e "${RED}[-] Could not update Termux package lists${NC}"
+        return 1
+    fi
+    if ! pkg upgrade -y; then
+        echo -e "${RED}[-] Could not upgrade Termux packages${NC}"
+        return 1
+    fi
     
     echo -e "\n${BLUE}[*] Installing essential packages...${NC}"
-    # Enable the root repository before installing packages provided by it.
-    PACKAGES="python python3 root-repo tsu wireless-tools"
+    echo -e "${CYAN}[*] Enabling the Termux root package repository...${NC}"
+    if ! pkg install root-repo -y; then
+        echo -e "${RED}[-] Could not enable root-repo${NC}"
+        return 1
+    fi
+
+    # Package names are Termux package names, not executable aliases.
+    PACKAGES="python iproute2 tsu iw wpa-supplicant pixiewps"
     
     for package in $PACKAGES; do
         echo -e "${CYAN}[*] Installing $package...${NC}"
-        pkg install $package -y 2>/dev/null || echo -e "${YELLOW}[!] Could not install $package${NC}"
+        if ! pkg install "$package" -y; then
+            echo -e "${RED}[-] Could not install required package: $package${NC}"
+            return 1
+        fi
     done
     
     # Install Python packages
@@ -126,61 +141,29 @@ install_wifit() {
     
     echo -e "${BLUE}[*] Source directory: $SCRIPT_DIR${NC}"
     
-    # For Termux, install to $PREFIX/bin
-    if [ -d "/data/data/com.termux" ]; then
-        INSTALL_DIR="$PREFIX/bin"
-    else
-        INSTALL_DIR="/usr/local/bin"
-    fi
-    
-    echo -e "${BLUE}[*] Installation directory: $INSTALL_DIR${NC}"
-    
-    # Verify source file exists
-    if [ ! -f "$SCRIPT_DIR/wifit.py" ]; then
-        echo -e "${RED}[-] Error: $SCRIPT_DIR/wifit.py not found!${NC}"
+    # Verify the package source exists.
+    if [ ! -f "$SCRIPT_DIR/wifit.py" ] || [ ! -f "$SCRIPT_DIR/pyproject.toml" ]; then
+        echo -e "${RED}[-] Error: WiFiT package files not found in $SCRIPT_DIR${NC}"
         exit 1
     fi
-    
-    # Copy main script
-    echo -e "${BLUE}[*] Copying WiFiT script...${NC}"
-    
-    # First, copy the actual Python script
-    cp "$SCRIPT_DIR/wifit.py" "$INSTALL_DIR/wifit.py"
-    chmod +x "$INSTALL_DIR/wifit.py"
-    
-    # Then create wrapper script
-    cat > "$INSTALL_DIR/wifit" << 'EOF'
-#!/bin/bash
-# WiFiT wrapper; wifit.py handles root elevation.
 
-# Resolve the installed script relative to this wrapper so it works from any
-# current directory and does not depend on PREFIX surviving elevation.
-WIFIT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-WIFIT_SCRIPT="$WIFIT_DIR/wifit.py"
+    local python_bin
+    python_bin="$(command -v python3 2>/dev/null || command -v python 2>/dev/null)"
+    if [ -z "$python_bin" ]; then
+        echo -e "${RED}[-] Error: Python 3 not found${NC}"
+        exit 1
+    fi
 
-if [ ! -f "$WIFIT_SCRIPT" ]; then
-    echo "[-] WiFiT script not found!"
-    exit 1
-fi
-
-if [ -x "$WIFIT_DIR/python3" ]; then
-    PYTHON_BIN="$WIFIT_DIR/python3"
-elif command -v python3 >/dev/null 2>&1; then
-    PYTHON_BIN="$(command -v python3)"
-else
-    echo "[-] Python 3 not found!"
-    exit 1
-fi
-
-exec "$PYTHON_BIN" "$WIFIT_SCRIPT" "$@"
-EOF
-    
-    chmod +x "$INSTALL_DIR/wifit"
+    echo -e "${BLUE}[*] Installing the WiFiT package and command...${NC}"
+    if ! "$python_bin" -m pip install "$SCRIPT_DIR"; then
+        echo -e "${RED}[-] WiFiT package installation failed${NC}"
+        exit 1
+    fi
     
     # Create reports directory
     mkdir -p "$SCRIPT_DIR/reports"
     
-    echo -e "${GREEN}[+] WiFiT installed successfully!${NC}"
+    echo -e "${GREEN}[+] WiFiT package installed successfully!${NC}"
 }
 
 # Check installation
@@ -262,13 +245,13 @@ main() {
         fi
     fi
     
-    check_termux
+    check_termux || exit 1
     echo ""
     
-    install_dependencies_termux
+    install_dependencies_termux || exit 1
     echo ""
     
-    setup_root_access
+    setup_root_access || exit 1
     echo ""
     
     install_wifit
