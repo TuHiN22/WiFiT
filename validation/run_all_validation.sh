@@ -378,7 +378,8 @@ data = {
     "validation_run": {
         "timestamp": os.environ.get("JSON_TIMESTAMP", ""),
         "target_bssid": os.environ.get("JSON_TARGET_BSSID", ""),
-        "wifit_version": os.environ.get("JSON_WIFIT_VERSION", "")
+        "wifit_version": os.environ.get("JSON_WIFIT_VERSION", ""),
+        "branch": os.environ.get("JSON_GIT_BRANCH", "")
     },
     "git_provenance": {
         "commit_full": os.environ.get("JSON_GIT_COMMIT_FULL", ""),
